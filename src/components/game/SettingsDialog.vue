@@ -136,6 +136,17 @@
                     <p v-if="webdavTestStatus === 'failed'" class="text-danger text-xs text-center mt-1">
                       {{ webdavTestError || '连接失败' }}
                     </p>
+                    <div v-if="webdavTraceLogs.length" class="border border-accent/20 rounded-xs p-2 bg-bg/40">
+                      <div class="flex items-center justify-between mb-1">
+                        <p class="text-[10px] text-muted">请求流程日志</p>
+                        <button class="text-[10px] text-muted hover:text-text" @click="clearWebdavTrace">清空</button>
+                      </div>
+                      <div class="max-h-28 overflow-y-auto text-left">
+                        <p v-for="(line, idx) in webdavTraceLogs" :key="idx" class="text-[10px] text-muted/80 leading-4 break-all">
+                          {{ line }}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </template>
               </div>
@@ -424,7 +435,15 @@
   const { isPaused, gameSpeed, togglePause, cycleSpeed } = useGameClock()
   const settingsStore = useSettingsStore()
   const tutorialStore = useTutorialStore()
-  const { webdavConfig, webdavTestStatus, webdavTestError, saveConfig: saveWebdavConfig, testConnection } = useWebdav()
+  const {
+    webdavConfig,
+    webdavTestStatus,
+    webdavTestError,
+    webdavTraceLogs,
+    saveConfig: saveWebdavConfig,
+    clearTrace: clearWebdavTrace,
+    testConnection
+  } = useWebdav()
 
   const showSaveManager = ref(false)
 
