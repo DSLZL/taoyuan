@@ -7,19 +7,19 @@ import type { PondBreedDef } from '@/types/fishPond'
 
 // [baseFishId, suffix, gen1, gen2, gen3, gen4, gen5]
 const SPECIES_CFG: [string, string, number, number, number, number, number][] = [
-  ['crucian',        '鲫',   16, 8, 4, 3, 2],
-  ['carp',           '鲤',   16, 8, 4, 3, 2],
-  ['grass_carp',     '草鱼', 16, 8, 4, 3, 2],
-  ['golden_carp',    '金鲤', 16, 8, 4, 3, 2],
-  ['koi',            '锦鲤', 16, 8, 4, 3, 2],
-  ['pond_turtle',    '龟',   15, 8, 4, 3, 2],
-  ['bass',           '鲈',   15, 8, 4, 3, 2],
-  ['catfish',        '鲶',   15, 8, 4, 3, 2],
-  ['yellow_eel',     '鳝',   15, 8, 4, 3, 2],
-  ['rainbow_trout',  '鳟',   15, 7, 4, 3, 2],
-  ['mud_loach',      '泥鳅', 15, 7, 4, 0, 0],
-  ['pond_snail',     '螺',   15, 7, 3, 0, 0],
-  ['cave_blindfish', '盲鱼', 15, 7, 3, 0, 0],
+  ['crucian', '鲫', 16, 8, 4, 3, 2],
+  ['carp', '鲤', 16, 8, 4, 3, 2],
+  ['grass_carp', '草鱼', 16, 8, 4, 3, 2],
+  ['golden_carp', '金鲤', 16, 8, 4, 3, 2],
+  ['koi', '锦鲤', 16, 8, 4, 3, 2],
+  ['pond_turtle', '龟', 15, 8, 4, 3, 2],
+  ['bass', '鲈', 15, 8, 4, 3, 2],
+  ['catfish', '鲶', 15, 8, 4, 3, 2],
+  ['yellow_eel', '鳝', 15, 8, 4, 3, 2],
+  ['rainbow_trout', '鳟', 15, 7, 4, 3, 2],
+  ['mud_loach', '泥鳅', 15, 7, 4, 0, 0],
+  ['pond_snail', '螺', 15, 7, 3, 0, 0],
+  ['cave_blindfish', '盲鱼', 15, 7, 3, 0, 0]
 ]
 
 // === 命名前缀 ===
@@ -166,16 +166,13 @@ const buildAllBreeds = (): PondBreedDef[] => {
 export const POND_BREEDS: PondBreedDef[] = buildAllBreeds()
 
 /** 根据品种ID查找 */
-export const getBreedById = (breedId: string): PondBreedDef | undefined =>
-  POND_BREEDS.find(b => b.breedId === breedId)
+export const getBreedById = (breedId: string): PondBreedDef | undefined => POND_BREEDS.find(b => b.breedId === breedId)
 
 /** 获取指定代数的所有品种 */
-export const getBreedsByGeneration = (gen: 1 | 2 | 3 | 4 | 5): PondBreedDef[] =>
-  POND_BREEDS.filter(b => b.generation === gen)
+export const getBreedsByGeneration = (gen: 1 | 2 | 3 | 4 | 5): PondBreedDef[] => POND_BREEDS.filter(b => b.generation === gen)
 
 /** 获取指定鱼种的所有品种 */
-export const getBreedsBySpecies = (baseFishId: string): PondBreedDef[] =>
-  POND_BREEDS.filter(b => b.baseFishId === baseFishId)
+export const getBreedsBySpecies = (baseFishId: string): PondBreedDef[] => POND_BREEDS.filter(b => b.baseFishId === baseFishId)
 
 /** 获取指定鱼种的 Gen1 品种列表 */
 export const getGen1BreedsForFish = (fishId: string): PondBreedDef[] =>
@@ -183,9 +180,8 @@ export const getGen1BreedsForFish = (fishId: string): PondBreedDef[] =>
 
 /** 根据亲本品种ID查找子代品种（顺序无关） */
 export const findBreedByParents = (breedIdA: string, breedIdB: string): PondBreedDef | undefined =>
-  POND_BREEDS.find(b =>
-    (b.parentBreedA === breedIdA && b.parentBreedB === breedIdB) ||
-    (b.parentBreedA === breedIdB && b.parentBreedB === breedIdA)
+  POND_BREEDS.find(
+    b => (b.parentBreedA === breedIdA && b.parentBreedB === breedIdB) || (b.parentBreedA === breedIdB && b.parentBreedB === breedIdA)
   )
 
 /** 各代品种数量 */

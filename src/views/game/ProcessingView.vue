@@ -68,11 +68,11 @@
                 ({{ group.slots.filter(s => s.slot.ready).length }}可收取)
               </span>
             </div>
-            <span class="text-[10px] text-muted">{{ collapsedGroups.has(group.machineType) ? '▸' : '▾' }}</span>
+            <span class="text-[10px] text-muted">{{ processingStore.collapsedGroups.has(group.machineType) ? '▸' : '▾' }}</span>
           </div>
 
           <!-- 展开的机器明细 -->
-          <div v-if="!collapsedGroups.has(group.machineType)" class="flex flex-col space-y-1.5 px-2 pb-2">
+          <div v-if="!processingStore.collapsedGroups.has(group.machineType)" class="flex flex-col space-y-1.5 px-2 pb-2">
             <div
               v-for="{ slot, originalIndex } in group.slots"
               :key="originalIndex"
@@ -466,15 +466,8 @@
     return [...groupMap.values()].sort((a, b) => (typeOrder.get(a.machineType) ?? 99) - (typeOrder.get(b.machineType) ?? 99))
   })
 
-  /** 折叠状态：存储已折叠的机器类型 */
-  const collapsedGroups = ref(new Set<MachineType>())
-
   const toggleGroup = (type: MachineType) => {
-    if (collapsedGroups.value.has(type)) {
-      collapsedGroups.value.delete(type)
-    } else {
-      collapsedGroups.value.add(type)
-    }
+    processingStore.toggleGroup(type)
   }
 
   /** 获取某类型机器的已有数量 */

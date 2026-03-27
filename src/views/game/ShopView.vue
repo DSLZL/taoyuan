@@ -1377,6 +1377,9 @@
       4: { newSize: 6, price: 2000 },
       6: { newSize: 8, price: 5000 }
     }
+    if (gameStore.farmMapType === 'standard') {
+      prices[8] = { newSize: 10, price: 10000 }
+    }
     return prices[farmStore.farmSize] ?? null
   })
 

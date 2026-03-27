@@ -15,14 +15,21 @@
       <div
         v-if="mainQuestDef"
         class="flex items-center justify-between border rounded-xs px-3 py-1.5 cursor-pointer"
-        :class="questStore.mainQuest?.accepted && questStore.canSubmitMainQuest() ? 'border-success/50 bg-success/5 hover:bg-success/10' : 'border-accent/20 hover:bg-accent/5'"
+        :class="
+          questStore.mainQuest?.accepted && questStore.canSubmitMainQuest()
+            ? 'border-success/50 bg-success/5 hover:bg-success/10'
+            : 'border-accent/20 hover:bg-accent/5'
+        "
         @click="questModal = { type: 'main' }"
       >
         <div class="min-w-0">
           <p class="text-xs text-accent truncate">第{{ mainQuestDef.chapter }}章 · {{ mainQuestDef.title }}</p>
           <p class="text-xs text-muted truncate">{{ mainQuestDef.description }}</p>
         </div>
-        <span class="text-xs whitespace-nowrap ml-2" :class="questStore.canSubmitMainQuest() ? 'text-success' : questStore.mainQuest?.accepted ? 'text-accent' : 'text-muted'">
+        <span
+          class="text-xs whitespace-nowrap ml-2"
+          :class="questStore.canSubmitMainQuest() ? 'text-success' : questStore.mainQuest?.accepted ? 'text-accent' : 'text-muted'"
+        >
           {{ questStore.canSubmitMainQuest() ? '可提交' : questStore.mainQuest?.accepted ? '进行中' : '未接取' }}
         </span>
       </div>
@@ -87,7 +94,13 @@
           v-for="quest in questStore.activeQuests"
           :key="quest.id"
           class="border rounded-xs px-3 py-1.5 cursor-pointer"
-          :class="canSubmit(quest) ? 'border-success/50 bg-success/5 hover:bg-success/10' : quest.type === 'special_order' ? 'border-accent/30 hover:bg-accent/5' : 'border-accent/20 hover:bg-accent/5'"
+          :class="
+            canSubmit(quest)
+              ? 'border-success/50 bg-success/5 hover:bg-success/10'
+              : quest.type === 'special_order'
+                ? 'border-accent/30 hover:bg-accent/5'
+                : 'border-accent/20 hover:bg-accent/5'
+          "
           @click="questModal = { type: 'active', questId: quest.id }"
         >
           <div class="flex items-center justify-between">

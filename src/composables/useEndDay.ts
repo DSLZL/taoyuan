@@ -625,7 +625,12 @@ export const handleEndDay = () => {
 
   npcStore.dailyReset()
   cookingStore.dailyReset()
-  useHanhaiStore().resetDailyBets()
+  const hanhaiStore = useHanhaiStore()
+  hanhaiStore.resetDailyBets()
+  // 通商售货结算
+  if (hanhaiStore.unlocked) {
+    hanhaiStore.dailyTradeUpdate()
+  }
 
   // 仙灵每日处理
   const hiddenNpcStore = useHiddenNpcStore()
@@ -675,6 +680,11 @@ export const handleEndDay = () => {
 
   // === 晨间结算（新日期） ===
 
+  // 瀚海轮换商品刷新（使用新日期，每周首日或首次加载时刷新）
+  if (hanhaiStore.unlocked && (gameStore.day % 7 === 1 || hanhaiStore.weeklyRotatingStock.length === 0)) {
+    hanhaiStore.refreshRotatingStock()
+  }
+
   // 动物产出
   const animalResult = animalStore.dailyUpdate()
   if (animalResult.products.length > 0) {
@@ -693,8 +703,9 @@ export const handleEndDay = () => {
     addLog(`${animalResult.healed.join('、')}吃饱后恢复了健康。`)
   }
 
-  // 晨间标记：dailyUpdate 已重置 wasFed，若前面喂食成功则标记新一天已喂食（不再消耗草料）
-  if (helperFeedSuccess || spouseFedSuccess) {
+  // 晨间标记：dailyUpdate 已重置 wasFed，若有喂食雇工或配偶喂食成功则标记新一天已喂食（不再消耗草料）
+  const hasFeedHelper = npcStore.hiredHelpers.some(h => h.task === 'feed')
+  if (hasFeedHelper || spouseFedSuccess) {
     animalStore.markAllFed()
   }
 
@@ -786,6 +797,10 @@ export const handleEndDay = () => {
     }
   }
 
+  // 蟹笼装饵雇工结算（在收获之前）
+  const helperBaitResult = npcStore.processDailyHelpers(['bait'])
+  for (const msg of helperBaitResult.messages) addLog(msg)
+
   // 蟹笼收获
   const fishingStore = useFishingStore()
   const crabPotHarvest = fishingStore.collectCrabPots()
@@ -795,11 +810,17 @@ export const handleEndDay = () => {
   }
 
   // 洞穴产出
+  if (homeStore.caveChoice !== 'none') {
+    homeStore.caveDaysActive++
+  }
   const caveProducts = homeStore.dailyCaveUpdate()
   for (const p of caveProducts) {
-    inventoryStore.addItem(p.itemId, p.quantity)
+    inventoryStore.addItem(p.itemId, p.quantity, p.quality)
     const itemDef = getItemById(p.itemId)
-    addLog(`山洞中发现了${itemDef?.name ?? p.itemId}。`)
+    const qualityLabel =
+      p.quality === 'normal' ? '' : p.quality === 'fine' ? '（优质）' : p.quality === 'excellent' ? '（精品）' : '（极品）'
+    const qtyText = p.quantity > 1 ? `${p.quantity}个` : ''
+    addLog(`山洞中发现了${qtyText}${itemDef?.name ?? p.itemId}${qualityLabel}。`)
   }
 
   // 果树更新
@@ -828,8 +849,12 @@ export const handleEndDay = () => {
   // 酒窖更新
   if (homeStore.farmhouseLevel >= 3) {
     const cellarResult = homeStore.dailyCellarUpdate()
-    for (const r of cellarResult.ready) {
-      addLog(`酒窖中的${getItemById(r.itemId)?.name ?? r.itemId}品质提升了！`)
+    for (const r of cellarResult.upgraded) {
+      const name = getItemById(r.itemId)?.name ?? r.itemId
+      addLog(`酒窖中的${name}价值提升了+${homeStore.cellarValuePerCycle}文（共+${r.addedValue}文）`)
+      if (r.upgradeCount >= 16 && r.upgradeCount % 16 === 0) {
+        addLog(`${name}已成为陈酿${r.upgradeCount / 16}年！`)
+      }
     }
   }
 
@@ -930,11 +955,11 @@ export const handleEndDay = () => {
     }
     farmStore.fruitTreeSeasonUpdate(oldSeason === 'winter')
 
-    // 桃源田庄：换季自动施肥
+    // 桃源田庄：换季自动施肥（按种植等级升级）
     if (gameStore.farmMapType === 'standard') {
-      const fertCount = farmStore.applyFertileSoil()
+      const { count: fertCount, fertilizerName } = farmStore.applyFertileSoil(skillStore.getSkill('farming').level)
       if (fertCount > 0) {
-        addLog(`桃源沃土滋养大地，${fertCount}块耕地获得了自然肥力。`)
+        addLog(`桃源沃土滋养大地，${fertCount}块耕地获得了${fertilizerName}。`)
       }
     }
 

@@ -188,7 +188,7 @@
           <!-- 骷髅矿穴 -->
           <div v-if="miningStore.isSkullCavernUnlocked()">
             <div
-              class="flex items-center justify-between border border-danger/30 rounded-xs px-3 py-1.5 cursor-pointer hover:bg-danger/5"
+              class="flex items-center justify-between border border-danger/30 rounded-xs px-3 py-1.5 mb-2 cursor-pointer hover:bg-danger/5"
               @click="handleEnterSkullCavern(undefined)"
             >
               <span class="text-xs text-danger">
@@ -198,11 +198,11 @@
               <span class="text-xs text-muted">第{{ miningStore.skullSafePointFloor + 1 }}层</span>
             </div>
             <!-- 骷髅矿穴安全点楼层 -->
-            <div v-if="skullElevatorFloors.length > 0" class="flex flex-wrap space-x-1 mt-1.5">
+            <div v-if="skullElevatorFloors.length > 0" class="max-h-48 overflow-y-auto grid-cols-5 grid m">
               <Button
                 v-for="sp in skullElevatorFloors"
                 :key="sp"
-                class="py-0.5 px-0 min-w-9 justify-center !border-danger/30 !text-danger"
+                class="py-0.5 px-0 min-w-9 justify-center !border-danger/30 !text-danger mb-1 mr-1"
                 @click="handleEnterSkullCavern(sp)"
               >
                 {{ sp + 1 }}
@@ -544,9 +544,45 @@
               <span class="text-xs">×{{ pendingItem.count }}</span>
             </div>
           </div>
+          <!-- 批量数量选择（仅永久增益类道具） -->
+          <div v-if="pendingCanBatch && pendingItem.count > 1" class="border border-accent/10 rounded-xs p-2 mb-2">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs text-muted">使用数量</span>
+              <div class="flex items-center space-x-1">
+                <Button class="h-6 px-1.5 py-0.5 text-xs justify-center" :disabled="pendingUseQty <= 1" @click="addUseQty(-1)">-</Button>
+                <input
+                  type="number"
+                  :value="pendingUseQty"
+                  min="1"
+                  :max="pendingItem.count"
+                  class="w-24 h-6 px-2 py-0.5 bg-bg border border-accent/30 rounded-xs text-xs text-center text-accent outline-none focus:border-accent transition-colors"
+                  @input="onUseQtyInput"
+                />
+                <Button
+                  class="h-6 px-1.5 py-0.5 text-xs justify-center"
+                  :disabled="pendingUseQty >= pendingItem.count"
+                  @click="addUseQty(1)"
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+            <div class="flex space-x-1">
+              <Button class="flex-1 justify-center" :disabled="pendingUseQty <= 1" @click="pendingUseQty = 1">最少</Button>
+              <Button
+                class="flex-1 justify-center"
+                :disabled="pendingUseQty >= pendingItem.count"
+                @click="pendingUseQty = pendingItem.count"
+              >
+                最多
+              </Button>
+            </div>
+          </div>
           <div class="flex space-x-1.5">
             <Button class="flex-1 justify-center" @click="pendingItemId = null">取消</Button>
-            <Button class="flex-1 justify-center !bg-accent !text-bg" @click="handleConfirmUseItem">确认使用</Button>
+            <Button class="flex-1 justify-center !bg-accent !text-bg" @click="handleConfirmUseItem">
+              确认使用{{ pendingCanBatch && pendingUseQty > 1 ? ` ×${pendingUseQty}` : '' }}
+            </Button>
           </div>
         </div>
       </div>
@@ -783,11 +819,24 @@
   const showCombatItems = ref(false)
 
   /** 道具使用确认 */
+  const BATCH_USABLE_ITEMS = new Set(['guild_badge', 'life_talisman', 'lucky_coin', 'defense_charm'])
   const pendingItemId = ref<string | null>(null)
+  const pendingUseQty = ref(1)
   const pendingItem = computed(() => {
     if (!pendingItemId.value) return null
     return availableCombatItems.value.find(i => i.itemId === pendingItemId.value) ?? null
   })
+  const pendingCanBatch = computed(() => pendingItemId.value !== null && BATCH_USABLE_ITEMS.has(pendingItemId.value))
+
+  const addUseQty = (delta: number) => {
+    const max = pendingItem.value?.count ?? 1
+    pendingUseQty.value = Math.max(1, Math.min(max, pendingUseQty.value + delta))
+  }
+  const onUseQtyInput = (e: Event) => {
+    const val = parseInt((e.target as HTMLInputElement).value) || 1
+    const max = pendingItem.value?.count ?? 1
+    pendingUseQty.value = Math.max(1, Math.min(max, val))
+  }
 
   /** 离开矿洞确认 */
   const showLeaveConfirm = ref(false)
@@ -1222,24 +1271,20 @@
     }, 400)
   }
 
-  /** 使用战斗道具 */
-  const handleUseCombatItem = (itemId: string) => {
-    const result = miningStore.useCombatItem(itemId)
+  const handleConfirmUseItem = () => {
+    if (!pendingItemId.value) return
+    const result = miningStore.useCombatItem(pendingItemId.value, pendingCanBatch.value ? pendingUseQty.value : 1)
     sfxClick()
     addLog(result.message)
     if (result.success) {
       exploreLog.value.push(result.message)
     }
-  }
-
-  const handleConfirmUseItem = () => {
-    if (!pendingItemId.value) return
-    handleUseCombatItem(pendingItemId.value)
     pendingItemId.value = null
   }
 
   const handlePendingItem = (itemId: string) => {
     pendingItemId.value = itemId
+    pendingUseQty.value = 1
     showCombatItems.value = false
   }
 

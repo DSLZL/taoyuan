@@ -123,6 +123,7 @@
       <!-- 方案按钮 -->
       <div class="flex items-center justify-end mb-1.5 space-x-1.5">
         <span v-if="activePresetName" class="text-[10px] text-success truncate">{{ activePresetName }}</span>
+        <Button class="py-0 px-1.5" :icon="ArrowDown01" :icon-size="12" @click="inventoryStore.sortEquipment()">整理</Button>
         <Button class="py-0 px-1.5" :icon="BookMarked" :icon-size="12" @click="showPresetModal = true">方案</Button>
       </div>
 
@@ -363,7 +364,7 @@
             <p class="text-xs text-muted mt-1">暂无方案</p>
             <p class="text-[10px] text-muted/60 mt-0.5">创建方案后可快速切换装备配置</p>
           </div>
-          <Button class="w-full justify-center" :disabled="inventoryStore.equipmentPresets.length >= 3" @click="handleCreatePreset">
+          <Button class="w-full justify-center" :disabled="inventoryStore.equipmentPresets.length >= 5" @click="handleCreatePreset">
             新建方案
           </Button>
         </div>

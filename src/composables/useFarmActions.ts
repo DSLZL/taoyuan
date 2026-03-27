@@ -15,7 +15,9 @@ import { getCropById, getItemById } from '@/data'
 import { getFertilizerById } from '@/data/processing'
 import { ACTION_TIME_COSTS } from '@/data/timeConstants'
 import type { Quality, ItemCategory } from '@/types'
+import type { SeedGenetics } from '@/types/breeding'
 import type { FertilizerType } from '@/types/processing'
+import { shouldReturnBreedingSeed, generateGeneticsId } from '@/data/breeding'
 import { addLog, showFloat } from './useGameLog'
 import { handleEndDay } from './useEndDay'
 import { sfxDig, sfxPlant, sfxWater, sfxHarvest, sfxLevelUp, sfxBuy, sfxCoin } from './useAudio'
@@ -202,7 +204,9 @@ export const handlePlotClick = (plotId: number) => {
       const intensiveDouble = skillStore.getSkill('farming').perk10 === 'intensive' && Math.random() < 0.2
       // 育种产量加成：yield/100 × 30% 概率双收
       const yieldDouble = genetics && !intensiveDouble && Math.random() < (genetics.yield / 100) * 0.3
-      const harvestQty = intensiveDouble || yieldDouble ? 2 : 1
+      // 桃源田庄：15% 概率额外收获
+      const standardDouble = !intensiveDouble && !yieldDouble && gameStore.farmMapType === 'standard' && Math.random() < 0.15
+      const harvestQty = intensiveDouble || yieldDouble || standardDouble ? 2 : 1
       inventoryStore.addItem(cropId, harvestQty, quality)
       achievementStore.discoverItem(cropId)
       achievementStore.recordCropHarvest()
@@ -210,11 +214,12 @@ export const handlePlotClick = (plotId: number) => {
       const { leveledUp, newLevel } = skillStore.addExp('farming', 10)
       const qualityLabel = quality !== 'normal' ? `(${QUALITY_NAMES[quality]})` : ''
       sfxHarvest()
-      const qtyLabel = intensiveDouble || yieldDouble ? '×2' : ''
+      const qtyLabel = intensiveDouble || yieldDouble || standardDouble ? '×2' : ''
       showFloat(`+${cropDef?.name ?? cropId}${qtyLabel}${qualityLabel}`, 'success')
       let msg = `收获了${cropDef?.name ?? cropId}${qtyLabel}${qualityLabel}！`
       if (intensiveDouble) msg += ' 精耕细作，双倍丰收！'
       if (yieldDouble) msg += ' 育种产量加成，双倍丰收！'
+      if (standardDouble) msg += ' 桃源沃土，额外丰收！'
       // 育种甜度加成：额外铜钱
       if (genetics && genetics.sweetness > 0 && cropDef) {
         const bonusMoney = Math.floor((cropDef.sellPrice * harvestQty * genetics.sweetness) / 200)
@@ -227,6 +232,15 @@ export const handlePlotClick = (plotId: number) => {
       // 杂交种记录
       if (genetics?.isHybrid && genetics.hybridId) {
         useBreedingStore().recordHybridGrown(genetics.hybridId)
+      }
+      // 育种种子回收
+      if (genetics && shouldReturnBreedingSeed(quality)) {
+        const returned: SeedGenetics = { ...genetics, id: generateGeneticsId() }
+        if (useBreedingStore().addToBox(returned)) {
+          msg += ' 育种种子已回收。'
+        } else {
+          msg += ' 种子箱已满，育种种子丢失！'
+        }
       }
       if (leveledUp) {
         msg += ` 农耕提升到${newLevel}级！`
@@ -481,6 +495,7 @@ export const handleBatchHarvest = () => {
 
   // 再收获普通作物
   const targets = farmStore.plots.filter(p => p.state === 'harvestable' && p.giantCropGroup === null)
+  let seedsReturned = 0
 
   for (const plot of targets) {
     const plotFertilizer = plot.fertilizer
@@ -496,7 +511,8 @@ export const handleBatchHarvest = () => {
       quality = applyCropBlessing(quality)
       const intensiveDouble = skillStore.getSkill('farming').perk10 === 'intensive' && Math.random() < 0.2
       const yieldDouble = genetics && !intensiveDouble && Math.random() < (genetics.yield / 100) * 0.3
-      const harvestQty = intensiveDouble || yieldDouble ? 2 : 1
+      const standardDouble = !intensiveDouble && !yieldDouble && gameStore.farmMapType === 'standard' && Math.random() < 0.15
+      const harvestQty = intensiveDouble || yieldDouble || standardDouble ? 2 : 1
       inventoryStore.addItem(cropId, harvestQty, quality)
       achievementStore.discoverItem(cropId)
       achievementStore.recordCropHarvest()
@@ -514,7 +530,16 @@ export const handleBatchHarvest = () => {
       if (genetics?.isHybrid && genetics.hybridId) {
         useBreedingStore().recordHybridGrown(genetics.hybridId)
       }
+      // 育种种子回收
+      if (genetics && shouldReturnBreedingSeed(quality)) {
+        const returned: SeedGenetics = { ...genetics, id: generateGeneticsId() }
+        if (useBreedingStore().addToBox(returned)) seedsReturned++
+      }
     }
+  }
+
+  if (seedsReturned > 0) {
+    addLog(`${seedsReturned}颗育种种子已回收到种子箱。`)
   }
 
   if (harvested > 0) {

@@ -12,6 +12,7 @@ import {
   MUTATION_JUMP_MIN,
   MUTATION_JUMP_MAX,
   MUTATION_RATE_DRIFT,
+  MUTATION_POSITIVE_CHANCE,
   BREEDING_STATION_COST,
   MAX_BREEDING_STATIONS,
   generateGeneticsId,
@@ -260,7 +261,7 @@ export const useBreedingStore = defineStore('breeding', () => {
       for (let i = 0; i < mutateCount; i++) {
         const stat = shuffled[i]!
         const jump = MUTATION_JUMP_MIN + Math.round(Math.random() * (MUTATION_JUMP_MAX - MUTATION_JUMP_MIN))
-        const direction = Math.random() < 0.5 ? 1 : -1
+        const direction = Math.random() < MUTATION_POSITIVE_CHANCE ? 1 : -1
         current[stat] = clampStat(current[stat] + jump * direction)
       }
 

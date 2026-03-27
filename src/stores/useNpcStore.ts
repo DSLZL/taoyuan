@@ -22,6 +22,7 @@ import { useCookingStore } from './useCookingStore'
 import { useFarmStore } from './useFarmStore'
 import { useAnimalStore } from './useAnimalStore'
 import { useFishPondStore } from './useFishPondStore'
+import { useFishingStore } from './useFishingStore'
 
 /** 好感等级阈值 (10心制, 每心250点, 上限2500) */
 const FRIENDSHIP_THRESHOLDS: { level: FriendshipLevel; min: number }[] = [
@@ -91,7 +92,8 @@ export const useNpcStore = defineStore('npc', () => {
     water: 100,
     feed: 150,
     harvest: 200,
-    weed: 100
+    weed: 100,
+    bait: 80
   }
 
   /** 雇工任务名称 */
@@ -99,7 +101,8 @@ export const useNpcStore = defineStore('npc', () => {
     water: '浇水',
     feed: '喂食',
     harvest: '收获',
-    weed: '除草除虫'
+    weed: '除草除虫',
+    bait: '装饵'
   }
 
   /** 可雇佣的NPC列表（好感>=1000 且 未被雇佣 且 非配偶/知己） */
@@ -235,6 +238,13 @@ export const useNpcStore = defineStore('npc', () => {
           }
           if (cleared > 0) messages.push(`${name}清理了${cleared}处杂草和虫害。(-${helper.dailyWage}文)`)
           else messages.push(`${name}今天田里挺干净的。(-${helper.dailyWage}文)`)
+          break
+        }
+        case 'bait': {
+          const fishingStore = useFishingStore()
+          const baited = fishingStore.baitAllCrabPots()
+          if (baited > 0) messages.push(`${name}帮你给${baited}个蟹笼装了饵。(-${helper.dailyWage}文)`)
+          else messages.push(`${name}今天蟹笼都有饵了。(-${helper.dailyWage}文)`)
           break
         }
       }

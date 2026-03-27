@@ -425,15 +425,31 @@ export const useProcessingStore = defineStore('processing', () => {
     return WORKSHOP_UPGRADES.find(u => u.level === next) ?? null
   }
 
+  /** 工坊分组折叠状态（参与存档） */
+  const collapsedGroups = ref(new Set<MachineType>())
+
+  const toggleGroup = (type: MachineType) => {
+    if (collapsedGroups.value.has(type)) {
+      collapsedGroups.value.delete(type)
+    } else {
+      collapsedGroups.value.add(type)
+    }
+  }
+
   // === 序列化 ===
 
   const serialize = () => {
-    return { machines: machines.value, workshopLevel: workshopLevel.value }
+    return {
+      machines: machines.value,
+      workshopLevel: workshopLevel.value,
+      collapsedGroups: [...collapsedGroups.value]
+    }
   }
 
   const deserialize = (data: ReturnType<typeof serialize>) => {
     machines.value = data.machines ?? []
     workshopLevel.value = (data as any).workshopLevel ?? 0
+    collapsedGroups.value = new Set((data as any).collapsedGroups ?? [])
   }
 
   return {
@@ -460,6 +476,8 @@ export const useProcessingStore = defineStore('processing', () => {
     upgradeWorkshop,
     getNextUpgrade,
     WORKSHOP_UPGRADES,
+    collapsedGroups,
+    toggleGroup,
     serialize,
     deserialize
   }
