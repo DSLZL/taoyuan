@@ -21,14 +21,13 @@ jobs:
             platform: win
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: latest
+          bun-version: latest
       - name: 配置 Node
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: 'pnpm'
 
       - name: 缓存 Electron Builder
         uses: actions/cache@v5
@@ -36,14 +35,14 @@ jobs:
           path: |
             ~/AppData/Local/electron/Cache
             ~/AppData/Local/electron-builder/Cache
-          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             electron-${{ runner.os }}-
 
       - name: 构建 Electron
         run: |
-          pnpm install
-          pnpm run build:electron --${{ matrix.platform }}
+          bun install
+          bun run build:electron --${{ matrix.platform }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -61,14 +60,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: latest
+          bun-version: latest
       - name: 配置 Node
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: 'pnpm'
       - name: 配置 Java
         uses: actions/setup-java@v5
         with:
@@ -85,11 +83,11 @@ jobs:
 
       - name: 构建前端
         run: |
-          pnpm install
-          pnpm run build
+          bun install
+          bun run build
 
       - name: 同步 Capacitor
-        run: npx cap sync android
+        run: bunx cap sync android
 
       - name: 构建 APK (Release)
         working-directory: android
