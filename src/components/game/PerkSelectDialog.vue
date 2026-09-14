@@ -55,7 +55,11 @@
       { id: 'rancher', name: '牧人', description: '动物产品售价+20%' }
     ],
     foraging: [
-      { id: 'lumberjack', name: '樵夫', description: '采集时25%概率额外获得木材' },
+      {
+        id: 'lumberjack',
+        name: '樵夫',
+        description: '采集时25%概率额外获得木材'
+      },
       { id: 'herbalist', name: '药师', description: '采集物品概率+20%' }
     ],
     fishing: [
@@ -110,8 +114,16 @@
         { id: 'blacksmith', name: '铁匠', description: '金属矿石售价+50%' }
       ],
       geologist: [
-        { id: 'excavator', name: '挖掘者', description: '使用炸弹时30%概率不消耗' },
-        { id: 'mineralogist', name: '宝石学家', description: '击败怪物额外掉落矿石' }
+        {
+          id: 'excavator',
+          name: '挖掘者',
+          description: '使用炸弹时30%概率不消耗'
+        },
+        {
+          id: 'mineralogist',
+          name: '宝石学家',
+          description: '击败怪物额外掉落矿石'
+        }
       ]
     },
     combat: {

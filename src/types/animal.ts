@@ -61,17 +61,12 @@ export interface Animal {
   sick: boolean
   /** 连续生病天数，达到上限时死亡 */
   sickDays: number
+  /** 马匹品种（仅 type === 'horse' 时有意义，缺省按普通马处理） */
+  horseBreed?: 'common' | 'steppe' | 'cloud' | 'divine'
 }
 
 export type FruitTreeType =
-  | 'peach_tree'
-  | 'lychee_tree'
-  | 'mandarin_tree'
-  | 'plum_tree'
-  | 'apricot_tree'
-  | 'pomegranate_tree'
-  | 'persimmon_tree'
-  | 'hawthorn_tree'
+  'peach_tree' | 'lychee_tree' | 'mandarin_tree' | 'plum_tree' | 'apricot_tree' | 'pomegranate_tree' | 'persimmon_tree' | 'hawthorn_tree'
 
 export interface FruitTreeDef {
   type: FruitTreeType

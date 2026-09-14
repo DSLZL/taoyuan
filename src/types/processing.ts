@@ -76,12 +76,7 @@ export interface SprinklerDef {
 
 /** 肥料类型 */
 export type FertilizerType =
-  | 'basic_fertilizer'
-  | 'quality_fertilizer'
-  | 'speed_gro'
-  | 'deluxe_speed_gro'
-  | 'retaining_soil'
-  | 'quality_retaining_soil'
+  'basic_fertilizer' | 'quality_fertilizer' | 'speed_gro' | 'deluxe_speed_gro' | 'retaining_soil' | 'quality_retaining_soil'
 
 /** 肥料定义 */
 export interface FertilizerDef {

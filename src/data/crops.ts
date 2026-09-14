@@ -4899,13 +4899,15 @@ export const CROPS: CropDef[] = [
     description: '太初瓜与虎啸桃永恒不灭之光，照耀天地。'
   },
   // === 远古作物 ===
+  // 远古种子只能从矿洞深层宝箱/博物馆奖励获得，且刻意未收录进种子制造机配方——
+  // 一旦可以量产，多茬收获会直接击穿经济平衡。单价按「多茬 6 次」的总产出反推定价。
   {
     id: 'ancient_fruit',
     name: '远古水果',
     seedId: 'ancient_seed',
     season: ['spring', 'summer', 'autumn'],
     growthDays: 28,
-    sellPrice: 4000,
+    sellPrice: 1500,
     seedPrice: 0,
     deepWatering: false,
     description: '远古种子孕育的神秘果实，蕴含亘古生命力，四季皆可生长。',

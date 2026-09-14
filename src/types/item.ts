@@ -42,6 +42,11 @@ export interface ItemDef {
   staminaRestore?: number
   /** 食用恢复生命值 */
   healthRestore?: number
+  /**
+   * 受保护物品：禁止出售、丢弃、放入出货箱。
+   * 用于公会限定奖励、求婚信物、剧情道具等——误卖一次可能逼玩家重开存档。
+   */
+  protected?: boolean
 }
 
 /** 背包中的物品实例 */

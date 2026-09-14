@@ -31,7 +31,12 @@ const MAX_CRAB_POTS = 12
 const MAX_CRAB_POTS_PER_LOCATION = 3
 
 /** 蟹笼产物池 */
-const CRAB_POT_LOOT: { itemId: string; weight: number; locationOverride?: FishingLocation; replaces?: string }[] = [
+const CRAB_POT_LOOT: {
+  itemId: string
+  weight: number
+  locationOverride?: FishingLocation
+  replaces?: string
+}[] = [
   { itemId: 'snail', weight: 20 },
   { itemId: 'freshwater_shrimp', weight: 25 },
   { itemId: 'crab', weight: 20 },
@@ -40,15 +45,31 @@ const CRAB_POT_LOOT: { itemId: string; weight: number; locationOverride?: Fishin
   { itemId: 'driftwood', weight: 10 },
   { itemId: 'broken_cd', weight: 5 },
   { itemId: 'soggy_newspaper', weight: 8 },
-  { itemId: 'cave_shrimp', weight: 25, locationOverride: 'mine', replaces: 'freshwater_shrimp' },
-  { itemId: 'swamp_crab', weight: 20, locationOverride: 'swamp', replaces: 'crab' }
+  {
+    itemId: 'cave_shrimp',
+    weight: 25,
+    locationOverride: 'mine',
+    replaces: 'freshwater_shrimp'
+  },
+  {
+    itemId: 'swamp_crab',
+    weight: 20,
+    locationOverride: 'swamp',
+    replaces: 'crab'
+  }
 ]
 
 /** 钓鱼垃圾池 */
 const FISHING_JUNK = ['trash', 'driftwood', 'broken_cd', 'soggy_newspaper']
 
 /** 宝箱奖品池 */
-const TREASURE_POOL: { itemId: string | null; weight: number; minQty: number; maxQty: number; money?: number }[] = [
+const TREASURE_POOL: {
+  itemId: string | null
+  weight: number
+  minQty: number
+  maxQty: number
+  money?: number
+}[] = [
   { itemId: 'copper_ore', weight: 30, minQty: 1, maxQty: 3 },
   { itemId: 'iron_ore', weight: 20, minQty: 1, maxQty: 3 },
   { itemId: 'gold_ore', weight: 10, minQty: 1, maxQty: 2 },
@@ -85,7 +106,10 @@ export const useFishingStore = defineStore('fishing', () => {
   const currentFish = ref<FishDef | null>(null)
 
   /** 上次钓鱼的宝箱结果 */
-  const lastTreasure = ref<{ items: { itemId: string; name: string; quantity: number }[]; money: number } | null>(null)
+  const lastTreasure = ref<{
+    items: { itemId: string; name: string; quantity: number }[]
+    money: number
+  } | null>(null)
 
   /** 上次是否完美 */
   const lastPerfect = ref(false)
@@ -129,7 +153,10 @@ export const useFishingStore = defineStore('fishing', () => {
     if (equippedTackle.value) unequipTackle()
     equippedTackle.value = type
     tackleDurability.value = def.maxDurability
-    return { success: true, message: `装备了${def.name}。(耐久: ${def.maxDurability})` }
+    return {
+      success: true,
+      message: `装备了${def.name}。(耐久: ${def.maxDurability})`
+    }
   }
 
   /** 卸下浮漂 */
@@ -145,7 +172,11 @@ export const useFishingStore = defineStore('fishing', () => {
   }
 
   /** 开始钓鱼 */
-  const startFishing = (): { success: boolean; message: string; junk?: boolean } => {
+  const startFishing = (): {
+    success: boolean
+    message: string
+    junk?: boolean
+  } => {
     const rodMultiplier = inventoryStore.getToolStaminaMultiplier('fishingRod')
     // 旋转亮片减免体力
     const tackleDef = equippedTackle.value ? getTackleById(equippedTackle.value) : null
@@ -206,7 +237,11 @@ export const useFishingStore = defineStore('fishing', () => {
       inventoryStore.addItem(junkId)
       currentFish.value = null
       skillStore.addExp('fishing', 3)
-      return { success: true, junk: true, message: `钓上了${junkName}……(-${staminaCost}体力)` }
+      return {
+        success: true,
+        junk: true,
+        message: `钓上了${junkName}……(-${staminaCost}体力)`
+      }
     }
 
     // 随机选一条鱼
@@ -228,16 +263,36 @@ export const useFishingStore = defineStore('fishing', () => {
     const level = skillStore.fishingLevel
 
     // 基础钩子高度（鱼竿等级）
-    const rodHookMap: Record<ToolTier, number> = { basic: 40, iron: 45, steel: 50, iridium: 60 }
+    const rodHookMap: Record<ToolTier, number> = {
+      basic: 40,
+      iron: 45,
+      steel: 50,
+      iridium: 60
+    }
     let hookHeight = rodHookMap[rodTier] + level * 2
 
     // 基础时限（鱼竿等级）
-    const rodTimeMap: Record<ToolTier, number> = { basic: 30, iron: 33, steel: 36, iridium: 40 }
+    const rodTimeMap: Record<ToolTier, number> = {
+      basic: 30,
+      iron: 33,
+      steel: 36,
+      iridium: 40
+    }
     const timeLimit = rodTimeMap[rodTier]
 
     // 鱼速度（难度为默认，鱼种可覆盖）
-    const difficultySpeedMap: Record<string, number> = { easy: 1.0, normal: 2.0, hard: 3.0, legendary: 4.0 }
-    const difficultyDirMap: Record<string, number> = { easy: 0.02, normal: 0.04, hard: 0.06, legendary: 0.08 }
+    const difficultySpeedMap: Record<string, number> = {
+      easy: 1.0,
+      normal: 2.0,
+      hard: 3.0,
+      legendary: 4.0
+    }
+    const difficultyDirMap: Record<string, number> = {
+      easy: 0.02,
+      normal: 0.04,
+      hard: 0.06,
+      legendary: 0.08
+    }
     let fishSpeed = fish.miniGameSpeed ?? difficultySpeedMap[fish.difficulty] ?? 2.0
     let fishChangeDir = fish.miniGameDirChange ?? difficultyDirMap[fish.difficulty] ?? 0.04
 
@@ -436,7 +491,12 @@ export const useFishingStore = defineStore('fishing', () => {
     }
 
     // 经验
-    const difficultyExpMult: Record<string, number> = { easy: 1, normal: 1.5, hard: 2, legendary: 3 }
+    const difficultyExpMult: Record<string, number> = {
+      easy: 1,
+      normal: 1.5,
+      hard: 2,
+      legendary: 3
+    }
     const expGain = currentFish.value.sellPrice * (difficultyExpMult[currentFish.value.difficulty] ?? 1)
     const riverlandBonus = gameStore.farmMapType === 'riverland' ? 1.25 : 1.0
     const perfectMult = rating === 'perfect' ? 2 : 1
@@ -481,7 +541,10 @@ export const useFishingStore = defineStore('fishing', () => {
   }
 
   /** 钓鱼宝箱 */
-  const rollTreasureChest = (): { items: { itemId: string; name: string; quantity: number }[]; money: number } | null => {
+  const rollTreasureChest = (): {
+    items: { itemId: string; name: string; quantity: number }[]
+    money: number
+  } | null => {
     const cookingStore = useCookingStore()
     const luckBuff = cookingStore.activeBuff?.type === 'luck' ? 0.05 : 0
     const ringTreasureFind = inventoryStore.getRingEffectValue('treasure_find')
@@ -504,7 +567,11 @@ export const useFishingStore = defineStore('fishing', () => {
           if (prize.itemId) {
             inventoryStore.addItem(prize.itemId, qty)
             const itemDef = getItemById(prize.itemId)
-            items.push({ itemId: prize.itemId, name: itemDef?.name ?? prize.itemId, quantity: qty })
+            items.push({
+              itemId: prize.itemId,
+              name: itemDef?.name ?? prize.itemId,
+              quantity: qty
+            })
           } else {
             money += qty
             playerStore.earnMoney(qty)
@@ -532,7 +599,10 @@ export const useFishingStore = defineStore('fishing', () => {
     }
     const atLocation = crabPots.value.filter(p => p.location === location).length
     if (atLocation >= MAX_CRAB_POTS_PER_LOCATION) {
-      return { success: false, message: `该地点蟹笼已达上限 (${MAX_CRAB_POTS_PER_LOCATION})。` }
+      return {
+        success: false,
+        message: `该地点蟹笼已达上限 (${MAX_CRAB_POTS_PER_LOCATION})。`
+      }
     }
     if (!inventoryStore.removeItem('crab_pot', 1)) {
       return { success: false, message: '背包中没有蟹笼。' }
@@ -623,7 +693,10 @@ export const useFishingStore = defineStore('fishing', () => {
         if (roll <= 0) {
           inventoryStore.addItem(loot.itemId, 1)
           const itemDef = getItemById(loot.itemId)
-          collected.push({ itemId: loot.itemId, name: itemDef?.name ?? loot.itemId })
+          collected.push({
+            itemId: loot.itemId,
+            name: itemDef?.name ?? loot.itemId
+          })
           // 水产也算钓鱼经验
           if (itemDef) {
             skillStore.addExp('fishing', Math.floor(itemDef.sellPrice * 0.5))

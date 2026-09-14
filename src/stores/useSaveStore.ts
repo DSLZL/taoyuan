@@ -298,5 +298,15 @@ export const useSaveStore = defineStore('save', () => {
     }
   }
 
-  return { activeSlot, getSlots, assignNewSlot, saveToSlot, autoSave, loadFromSlot, deleteSlot, exportSave, importSave }
+  return {
+    activeSlot,
+    getSlots,
+    assignNewSlot,
+    saveToSlot,
+    autoSave,
+    loadFromSlot,
+    deleteSlot,
+    exportSave,
+    importSave
+  }
 })

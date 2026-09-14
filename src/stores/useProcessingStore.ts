@@ -296,6 +296,133 @@ export const useProcessingStore = defineStore('processing', () => {
     return getRecipesForMachine(machineType)
   }
 
+  // === 加工站（同类设备并行槽位）===
+
+  /** 加工站统计：把同类设备视作一个拥有 N 个并行槽位的工站 */
+  interface StationStats {
+    /** 槽位总数 */
+    total: number
+    /** 空闲槽位数 */
+    idle: number
+    /** 运行中槽位数 */
+    running: number
+    /** 可收取槽位数 */
+    ready: number
+  }
+
+  /** 统计某类设备的槽位占用情况 */
+  const getStationStats = (machineType: MachineType): StationStats => {
+    let total = 0
+    let idle = 0
+    let running = 0
+    let ready = 0
+    for (const slot of machines.value) {
+      if (slot.machineType !== machineType) continue
+      total++
+      if (!slot.recipeId) idle++
+      else if (slot.ready) ready++
+      else running++
+    }
+    return { total, idle, running, ready }
+  }
+
+  /** 取得某类设备的槽位在 machines 中的下标（按原始顺序） */
+  const getStationSlotIndexes = (machineType: MachineType): number[] => {
+    const result: number[] = []
+    for (let i = 0; i < machines.value.length; i++) {
+      if (machines.value[i]!.machineType === machineType) result.push(i)
+    }
+    return result
+  }
+
+  /**
+   * 批量投料：把同一配方分配到该加工站的空闲槽位上。
+   * 逐个尝试，材料不足时自动停止，返回实际开工的槽位数。
+   */
+  const startProcessingBatch = (machineType: MachineType, recipeId: string, count: number, specifiedQuality?: Quality): number => {
+    if (count <= 0) return 0
+    let started = 0
+    for (const index of getStationSlotIndexes(machineType)) {
+      if (started >= count) break
+      if (machines.value[index]!.recipeId !== null) continue
+      if (!startProcessing(index, recipeId, specifiedQuality)) break
+      started++
+    }
+    return started
+  }
+
+  /** 收取某加工站（省略则全部工站）已完成的产物，返回收取数量 */
+  const collectAllReady = (machineType?: MachineType): number => {
+    let collected = 0
+    for (let i = 0; i < machines.value.length; i++) {
+      const slot = machines.value[i]!
+      if (machineType && slot.machineType !== machineType) continue
+      if (!slot.ready) continue
+      if (collectProduct(i)) collected++
+    }
+    return collected
+  }
+
+  /** 取消某加工站全部进行中的加工，返回取消数量 */
+  const cancelAllProcessing = (machineType: MachineType): number => {
+    let cancelled = 0
+    for (const index of getStationSlotIndexes(machineType)) {
+      const slot = machines.value[index]!
+      if (!slot.recipeId || slot.ready) continue
+      if (cancelProcessing(index)) cancelled++
+    }
+    return cancelled
+  }
+
+  /** 拆除该加工站的一个槽位：优先拆空闲槽位，避免误毁进行中的加工 */
+  const removeOneFromStation = (machineType: MachineType): boolean => {
+    const indexes = getStationSlotIndexes(machineType)
+    if (indexes.length === 0) return false
+    const idleIndex = indexes.find(i => machines.value[i]!.recipeId === null)
+    return removeMachine(idleIndex ?? indexes[indexes.length - 1]!)
+  }
+
+  // === 排序与命名 ===
+
+  /**
+   * 加工站自定义名称。
+   * 设备多了以后「酒坊」「酒坊」「酒坊」很难区分各自在干什么，允许起个诸如「果酒专用」的名字。
+   */
+  const stationNames = ref<Record<string, string>>({})
+
+  /** 加工站显示顺序（存放 machineType，未列出的按默认顺序排在后面） */
+  const stationOrder = ref<MachineType[]>([])
+
+  /** 取加工站显示名（未命名则用设备原名） */
+  const getStationName = (machineType: MachineType, defaultName: string): string => {
+    return stationNames.value[machineType] || defaultName
+  }
+
+  /** 重命名加工站；传空字符串恢复默认名 */
+  const renameStation = (machineType: MachineType, name: string) => {
+    const trimmed = name.trim()
+    if (trimmed) stationNames.value[machineType] = trimmed
+    else delete stationNames.value[machineType]
+  }
+
+  /** 在显示顺序中把某个加工站上移/下移 */
+  const moveStation = (machineType: MachineType, direction: -1 | 1, allTypes: MachineType[]) => {
+    // 以当前完整列表为基准补全顺序表，避免新造的设备无法参与排序
+    const order = allTypes.slice()
+    const from = order.indexOf(machineType)
+    const to = from + direction
+    if (from < 0 || to < 0 || to >= order.length) return
+    ;[order[from], order[to]] = [order[to]!, order[from]!]
+    stationOrder.value = order
+  }
+
+  /** 按自定义顺序排序加工站类型 */
+  const sortStationTypes = (types: MachineType[]): MachineType[] => {
+    if (stationOrder.value.length === 0) return types
+    const rank = new Map(stationOrder.value.map((t, i) => [t, i]))
+    return types.slice().sort((a, b) => (rank.get(a) ?? 999) - (rank.get(b) ?? 999))
+  }
+
   // === 每日更新 ===
 
   const dailyUpdate = () => {
@@ -416,7 +543,10 @@ export const useProcessingStore = defineStore('processing', () => {
     if (!upgrade) return { success: false, message: '工坊已达到最高等级。' }
     if (!consumeCraftMaterials(upgrade.materials, upgrade.cost)) return { success: false, message: '材料或铜钱不足。' }
     workshopLevel.value = next
-    return { success: true, message: `工坊扩建完成！机器上限提升至${maxMachines.value}台。` }
+    return {
+      success: true,
+      message: `工坊扩建完成！机器上限提升至${maxMachines.value}台。`
+    }
   }
 
   /** 获取下一级升级信息 */
@@ -427,6 +557,13 @@ export const useProcessingStore = defineStore('processing', () => {
 
   /** 工坊分组折叠状态（参与存档） */
   const collapsedGroups = ref(new Set<MachineType>())
+
+  /**
+   * 加工区视图模式（参与存档）。
+   * station：同类设备合并成一座加工站，统一投料；
+   * individual：每台设备各自一块面板，逐台操作。
+   */
+  const viewMode = ref<'station' | 'individual'>('station')
 
   const toggleGroup = (type: MachineType) => {
     if (collapsedGroups.value.has(type)) {
@@ -442,7 +579,10 @@ export const useProcessingStore = defineStore('processing', () => {
     return {
       machines: machines.value,
       workshopLevel: workshopLevel.value,
-      collapsedGroups: [...collapsedGroups.value]
+      collapsedGroups: [...collapsedGroups.value],
+      viewMode: viewMode.value,
+      stationNames: stationNames.value,
+      stationOrder: stationOrder.value
     }
   }
 
@@ -450,6 +590,9 @@ export const useProcessingStore = defineStore('processing', () => {
     machines.value = data.machines ?? []
     workshopLevel.value = (data as any).workshopLevel ?? 0
     collapsedGroups.value = new Set((data as any).collapsedGroups ?? [])
+    viewMode.value = (data as any).viewMode ?? 'station'
+    stationNames.value = (data as any).stationNames ?? {}
+    stationOrder.value = (data as any).stationOrder ?? []
   }
 
   return {
@@ -472,11 +615,24 @@ export const useProcessingStore = defineStore('processing', () => {
     cancelProcessing,
     removeMachine,
     getAvailableRecipes,
+    getStationStats,
+    getStationSlotIndexes,
+    startProcessingBatch,
+    collectAllReady,
+    cancelAllProcessing,
+    removeOneFromStation,
     dailyUpdate,
     upgradeWorkshop,
     getNextUpgrade,
     WORKSHOP_UPGRADES,
     collapsedGroups,
+    viewMode,
+    stationNames,
+    stationOrder,
+    getStationName,
+    renameStation,
+    moveStation,
+    sortStationTypes,
     toggleGroup,
     serialize,
     deserialize

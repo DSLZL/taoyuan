@@ -40,47 +40,213 @@
         </button>
       </div>
 
-      <!-- 只显示可加工 -->
-      <label class="flex items-center space-x-1 mb-2 cursor-pointer select-none">
-        <input type="checkbox" v-model="onlyAvailable" class="accent-accent" />
-        <span class="text-[10px] text-muted">只显示有材料的配方</span>
-      </label>
+      <!-- 全局操作 -->
+      <div class="flex items-center justify-between mb-2">
+        <label class="flex items-center space-x-1 cursor-pointer select-none">
+          <input type="checkbox" v-model="onlyAvailable" class="accent-accent" />
+          <span class="text-[10px] text-muted">只显示有材料的配方</span>
+        </label>
+        <Button v-if="totalReady > 0" class="py-0 px-1.5 text-[10px]" :icon="Package" :icon-size="10" @click="handleCollectAll()">
+          一键收取全部（{{ totalReady }}）
+        </Button>
+      </div>
+
+      <!-- 视图切换：合并成加工站，或逐台独立操作 -->
+      <div v-if="processingStore.machines.length > 0" class="flex space-x-1 mb-2">
+        <Button
+          class="flex-1 justify-center py-0 text-[10px]"
+          :class="{
+            '!bg-accent !text-bg': processingStore.viewMode === 'station'
+          }"
+          @click="processingStore.viewMode = 'station'"
+        >
+          加工站视图
+        </Button>
+        <Button
+          class="flex-1 justify-center py-0 text-[10px]"
+          :class="{
+            '!bg-accent !text-bg': processingStore.viewMode === 'individual'
+          }"
+          @click="processingStore.viewMode = 'individual'"
+        >
+          单台视图
+        </Button>
+      </div>
 
       <!-- 空状态 -->
       <div v-if="processingStore.machines.length === 0" class="flex flex-col items-center justify-center py-8">
         <Boxes :size="36" class="text-accent/20 mb-2" />
-        <p class="text-xs text-muted">还没有机器</p>
-        <p class="text-[10px] text-muted/50 mt-0.5">切换到「制造」标签制造一台加工机器吧</p>
+        <p class="text-xs text-muted">还没有加工设备</p>
+        <p class="text-[10px] text-muted/50 mt-0.5">切换到「制造」标签建造设备，同类设备会自动合并为一座加工站</p>
       </div>
 
-      <!-- 机器列表（按类型分组） -->
+      <!-- 加工站列表：同类设备合并为一座工站，设备数 = 并行槽位数 -->
+      <div v-else-if="processingStore.viewMode === 'station'" class="flex flex-col space-y-2">
+        <div v-for="station in stations" :key="station.machineType" class="border border-accent/10 rounded-xs">
+          <!-- 工站标题（可折叠 / 可改名 / 可调序） -->
+          <div class="flex items-center justify-between px-2 py-1.5 select-none">
+            <div class="flex items-center space-x-1 flex-1 min-w-0 cursor-pointer" @click="toggleGroup(station.machineType)">
+              <template v-if="renamingType === station.machineType">
+                <input
+                  v-model="renameInput"
+                  class="bg-bg border border-accent/30 rounded-xs px-1 py-0.5 text-xs text-text w-24 outline-none"
+                  maxlength="10"
+                  :placeholder="station.baseName"
+                  @click.stop
+                  @keyup.enter="confirmRename"
+                  @keyup.escape="renamingType = null"
+                />
+                <Button class="py-0 px-1 text-[10px]" @click.stop="confirmRename">确定</Button>
+                <Button class="py-0 px-1 text-[10px]" @click.stop="renamingType = null">取消</Button>
+              </template>
+              <template v-else>
+                <span class="text-xs text-accent truncate">{{ station.name }}</span>
+                <span v-if="station.name !== station.baseName" class="text-[10px] text-muted/50">({{ station.baseName }})</span>
+                <span class="text-[10px] text-muted">&times;{{ station.stats.total }}</span>
+                <span v-if="station.stats.ready > 0" class="text-[10px] text-success">{{ station.stats.ready }}可收</span>
+              </template>
+            </div>
+            <div class="flex items-center space-x-1 flex-shrink-0">
+              <button
+                v-if="renamingType !== station.machineType"
+                class="text-muted hover:text-accent"
+                title="重命名"
+                @click.stop="startRename(station.machineType, station.name, station.baseName)"
+              >
+                <Pencil :size="10" />
+              </button>
+              <button class="text-muted hover:text-accent" title="上移" @click.stop="handleMoveStation(station.machineType, -1)">
+                <ChevronUp :size="12" />
+              </button>
+              <button class="text-muted hover:text-accent" title="下移" @click.stop="handleMoveStation(station.machineType, 1)">
+                <ChevronDown :size="12" />
+              </button>
+              <span class="text-[10px] text-muted cursor-pointer" @click="toggleGroup(station.machineType)">
+                {{ processingStore.collapsedGroups.has(station.machineType) ? '▸' : '▾' }}
+              </span>
+            </div>
+          </div>
+          <p class="text-[10px] text-muted px-2 -mt-1 mb-1">运行{{ station.stats.running }} · 空闲{{ station.stats.idle }}</p>
+
+          <!-- 展开内容 -->
+          <div v-if="!processingStore.collapsedGroups.has(station.machineType)" class="px-2 pb-2">
+            <!-- 槽位占用条 -->
+            <div class="h-1 bg-bg rounded-xs border border-accent/10 mb-2 flex overflow-hidden">
+              <div
+                class="h-full bg-success"
+                :style="{
+                  width: pct(station.stats.ready, station.stats.total)
+                }"
+              />
+              <div
+                class="h-full bg-accent"
+                :style="{
+                  width: pct(station.stats.running, station.stats.total)
+                }"
+              />
+            </div>
+
+            <!-- 工站操作 -->
+            <div class="flex flex-wrap mb-2">
+              <Button
+                v-if="station.stats.idle > 0"
+                class="py-0 px-1.5 text-[10px] mr-1 mb-1"
+                :icon="Play"
+                :icon-size="10"
+                @click="openTaskModal(station.machineType)"
+              >
+                投料（{{ station.stats.idle }}个空槽）
+              </Button>
+              <Button
+                v-if="station.stats.ready > 0"
+                class="py-0 px-1.5 text-[10px] mr-1 mb-1 !bg-accent !text-bg"
+                :icon="Package"
+                :icon-size="10"
+                @click="handleCollectAll(station.machineType)"
+              >
+                收取{{ station.stats.ready }}份
+              </Button>
+              <Button
+                v-if="station.stats.running > 0"
+                class="py-0 px-1.5 text-[10px] mr-1 mb-1"
+                :icon="X"
+                :icon-size="10"
+                @click="handleCancelAll(station.machineType)"
+              >
+                全部停工
+              </Button>
+              <Button
+                class="py-0 px-1.5 text-[10px] mr-1 mb-1 text-danger"
+                :icon="Trash2"
+                :icon-size="10"
+                @click="handleRemoveOne(station.machineType)"
+              >
+                拆除一台
+              </Button>
+            </div>
+
+            <!-- 槽位明细 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-1">
+              <div
+                v-for="(entry, si) in station.slots"
+                :key="entry.originalIndex"
+                class="border rounded-xs px-2 py-1 flex items-center justify-between"
+                :class="entry.slot.ready ? 'border-success/30' : entry.slot.recipeId ? 'border-accent/20' : 'border-accent/10'"
+              >
+                <span class="text-[10px] text-muted/50 mr-1 flex-shrink-0">{{ si + 1 }}</span>
+                <!-- 空闲 -->
+                <template v-if="!entry.slot.recipeId">
+                  <span class="text-[10px] text-muted flex-1">空闲</span>
+                </template>
+                <!-- 已完成 -->
+                <template v-else-if="entry.slot.ready">
+                  <span class="text-[10px] text-success flex-1 truncate">{{ getRecipeOutputName(entry.slot.recipeId) }} 已完成</span>
+                  <button class="text-success hover:text-accent flex-shrink-0" @click="handleCollect(entry.originalIndex)">
+                    <Package :size="12" />
+                  </button>
+                </template>
+                <!-- 加工中 -->
+                <template v-else>
+                  <span class="text-[10px] flex-1 truncate">
+                    {{ getRecipeName(entry.slot.recipeId) }}
+                    <span class="text-muted">剩{{ Math.max(0, entry.slot.totalDays - entry.slot.daysProcessed) }}天</span>
+                  </span>
+                  <button class="text-muted hover:text-danger flex-shrink-0" @click="handleCancelProcessing(entry.originalIndex)">
+                    <X :size="12" />
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 单台视图：每台设备各自一块面板，逐台投料与拆除 -->
       <div v-else class="flex flex-col space-y-2">
-        <div v-for="group in machineGroups" :key="group.machineType" class="border border-accent/10 rounded-xs">
+        <div v-for="station in stations" :key="station.machineType" class="border border-accent/10 rounded-xs">
           <!-- 分组标题（可折叠） -->
           <div
             class="flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-accent/5 select-none"
-            @click="toggleGroup(group.machineType)"
+            @click="toggleGroup(station.machineType)"
           >
             <div class="flex items-center space-x-1">
-              <span class="text-xs text-accent">{{ group.name }}</span>
-              <span class="text-[10px] text-muted">×{{ group.slots.length }}</span>
-              <span v-if="group.slots.some(s => s.slot.ready)" class="text-[10px] text-success">
-                ({{ group.slots.filter(s => s.slot.ready).length }}可收取)
-              </span>
+              <span class="text-xs text-accent">{{ station.name }}</span>
+              <span class="text-[10px] text-muted">&times;{{ station.stats.total }}</span>
+              <span v-if="station.stats.ready > 0" class="text-[10px] text-success">（{{ station.stats.ready }}可收取）</span>
             </div>
-            <span class="text-[10px] text-muted">{{ processingStore.collapsedGroups.has(group.machineType) ? '▸' : '▾' }}</span>
+            <span class="text-[10px] text-muted">{{ processingStore.collapsedGroups.has(station.machineType) ? '▸' : '▾' }}</span>
           </div>
 
           <!-- 展开的机器明细 -->
-          <div v-if="!processingStore.collapsedGroups.has(group.machineType)" class="flex flex-col space-y-1.5 px-2 pb-2">
+          <div v-if="!processingStore.collapsedGroups.has(station.machineType)" class="flex flex-col space-y-1.5 px-2 pb-2">
             <div
-              v-for="{ slot, originalIndex } in group.slots"
+              v-for="{ slot, originalIndex } in station.slots"
               :key="originalIndex"
               class="border rounded-xs p-2"
               :class="slot.ready ? 'border-success/30' : 'border-accent/20'"
             >
               <div class="flex items-center justify-between mb-1.5">
-                <span class="text-xs" :class="slot.ready ? 'text-success' : 'text-accent'">{{ group.name }}</span>
+                <span class="text-xs" :class="slot.ready ? 'text-success' : 'text-accent'">{{ station.name }}</span>
                 <button class="text-muted hover:text-danger" @click="handleRemoveMachine(originalIndex)">
                   <Trash2 :size="12" />
                 </button>
@@ -111,7 +277,9 @@
                       <span class="text-muted">({{ qr.count }}/{{ qr.recipe.inputQuantity }})</span>
                     </Button>
                   </div>
-                  <p v-else class="text-xs text-muted">{{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}</p>
+                  <p v-else class="text-xs text-muted">
+                    {{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}
+                  </p>
                 </template>
                 <!-- 其他机器：普通配方列表 -->
                 <template v-else>
@@ -128,7 +296,9 @@
                       </span>
                     </Button>
                   </div>
-                  <p v-else class="text-xs text-muted">{{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}</p>
+                  <p v-else class="text-xs text-muted">
+                    {{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}
+                  </p>
                 </template>
               </div>
 
@@ -141,7 +311,9 @@
                 <div class="h-1 bg-bg rounded-xs border border-accent/10 mb-1.5">
                   <div
                     class="h-full bg-accent rounded-xs transition-all"
-                    :style="{ width: Math.floor((slot.daysProcessed / slot.totalDays) * 100) + '%' }"
+                    :style="{
+                      width: Math.floor((slot.daysProcessed / slot.totalDays) * 100) + '%'
+                    }"
                   />
                 </div>
                 <Button class="w-full justify-center" :icon="X" :icon-size="10" @click="handleCancelProcessing(originalIndex)">
@@ -165,6 +337,117 @@
         </div>
       </div>
     </div>
+
+    <!-- 加工站投料弹窗：选配方 + 数量，自动分配到空闲槽位 -->
+    <Transition name="panel-fade">
+      <div v-if="taskModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" @click.self="closeTaskModal">
+        <div class="game-panel max-w-xs w-full relative">
+          <button class="absolute top-2 right-2 text-muted hover:text-text" @click="closeTaskModal">
+            <X :size="14" />
+          </button>
+
+          <p class="text-sm text-accent mb-1">{{ getMachineName(taskModal.machineType) }} 投料</p>
+          <p class="text-[10px] text-muted mb-2">空闲槽位 {{ taskIdleSlots }} 个，选好配方后按数量分配。</p>
+
+          <!-- 第一步：选配方 -->
+          <template v-if="!taskModal.recipeId">
+            <!-- 种子制造机按品质拆分 -->
+            <div v-if="taskModal.machineType === 'seed_maker'" class="flex flex-col space-y-1 max-h-56 overflow-y-auto">
+              <Button
+                v-for="qr in getSeedMakerQualityRecipes(taskModal.machineType)"
+                :key="qr.recipe.id + ':' + qr.quality"
+                class="w-full justify-between"
+                :disabled="!qr.available"
+                @click="selectTaskRecipe(qr.recipe.id, qr.quality)"
+              >
+                <span>
+                  {{ qr.recipe.name }}
+                  <span
+                    v-if="qr.quality !== 'normal'"
+                    :class="{
+                      'text-quality-fine': qr.quality === 'fine',
+                      'text-quality-excellent': qr.quality === 'excellent',
+                      'text-quality-supreme': qr.quality === 'supreme'
+                    }"
+                  >
+                    [{{ QUALITY_NAMES[qr.quality] }}]
+                  </span>
+                </span>
+                <span class="text-muted">{{ qr.count }}/{{ qr.recipe.inputQuantity }}</span>
+              </Button>
+              <p v-if="getSeedMakerQualityRecipes(taskModal.machineType).length === 0" class="text-xs text-muted text-center py-4">
+                {{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}
+              </p>
+            </div>
+            <!-- 其他设备 -->
+            <div v-else class="flex flex-col space-y-1 max-h-56 overflow-y-auto">
+              <Button
+                v-for="recipe in getFilteredRecipes(taskModal.machineType)"
+                :key="recipe.id"
+                class="w-full justify-between"
+                :disabled="recipe.inputItemId !== null && !hasCombinedItem(recipe.inputItemId, recipe.inputQuantity)"
+                @click="selectTaskRecipe(recipe.id)"
+              >
+                <span class="truncate">{{ recipe.name }}</span>
+                <span v-if="recipe.inputItemId" class="text-muted flex-shrink-0 ml-1">
+                  {{ getCombinedItemCount(recipe.inputItemId) }}/{{ recipe.inputQuantity }}
+                </span>
+              </Button>
+              <p v-if="getFilteredRecipes(taskModal.machineType).length === 0" class="text-xs text-muted text-center py-4">
+                {{ onlyAvailable ? '没有材料足够的配方' : '无可用配方' }}
+              </p>
+            </div>
+          </template>
+
+          <!-- 第二步：选数量 -->
+          <template v-else>
+            <div class="border border-accent/10 rounded-xs p-2 mb-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-accent">{{ getRecipeName(taskModal.recipeId) }}</span>
+                <span class="text-[10px] text-muted">{{ taskRecipe?.processingDays ?? '?' }}天/份</span>
+              </div>
+              <div v-if="taskRecipe?.inputItemId" class="flex items-center justify-between mt-0.5">
+                <span class="text-[10px] text-muted">每份消耗</span>
+                <span class="text-[10px] text-muted">{{ getItemName(taskRecipe.inputItemId) }} &times;{{ taskRecipe.inputQuantity }}</span>
+              </div>
+            </div>
+
+            <div class="border border-accent/10 rounded-xs p-2 mb-2">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs text-muted">投料份数</span>
+                <div class="flex items-center space-x-1">
+                  <Button class="h-6 px-1.5 py-0.5 text-xs justify-center" :disabled="taskQty <= 1" @click="addTaskQty(-1)">-</Button>
+                  <input
+                    type="number"
+                    :value="taskQty"
+                    min="1"
+                    :max="maxTaskQty"
+                    class="w-16 h-6 px-2 py-0.5 bg-bg border border-accent/30 rounded-xs text-xs text-center text-accent outline-none"
+                    @input="onTaskQtyInput"
+                  />
+                  <Button class="h-6 px-1.5 py-0.5 text-xs justify-center" :disabled="taskQty >= maxTaskQty" @click="addTaskQty(1)">
+                    +
+                  </Button>
+                </div>
+              </div>
+              <div class="flex space-x-1">
+                <Button class="flex-1 justify-center" :disabled="taskQty <= 1" @click="setTaskQty(1)">最少</Button>
+                <Button class="flex-1 justify-center" :disabled="taskQty >= maxTaskQty" @click="setTaskQty(maxTaskQty)">
+                  排满（{{ maxTaskQty }}）
+                </Button>
+              </div>
+            </div>
+
+            <div class="flex space-x-1">
+              <Button class="flex-1 justify-center" @click="taskModal.recipeId = null">重选配方</Button>
+              <Button class="flex-1 justify-center !bg-accent !text-bg" :icon="Play" :icon-size="12" @click="confirmTask">
+                开工 &times;{{ taskQty }}
+              </Button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Transition>
 
     <!-- 制造区 -->
     <div v-if="activeTab === 'craft'" class="border border-accent/20 rounded-xs p-3">
@@ -237,11 +520,16 @@
             <!-- 所需材料 -->
             <div class="border border-accent/10 rounded-xs p-2 mb-2">
               <p class="text-xs text-muted mb-1">所需材料</p>
-              <div v-for="mat in nextUpgrade.materials" :key="mat.itemId" class="flex items-center justify-between">
-                <span class="text-xs text-muted">{{ getItemById(mat.itemId)?.name }}</span>
-                <span class="text-xs" :class="getCombinedItemCount(mat.itemId) >= mat.quantity ? '' : 'text-danger'">
-                  {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity }}
-                </span>
+              <div v-for="mat in nextUpgrade.materials" :key="mat.itemId" class="mb-1 last:mb-0">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-muted">{{ getItemById(mat.itemId)?.name }}</span>
+                  <span class="text-xs" :class="getCombinedItemCount(mat.itemId) >= mat.quantity ? '' : 'text-danger'">
+                    {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity }}
+                  </span>
+                </div>
+                <p v-if="getCombinedItemCount(mat.itemId) < mat.quantity" class="text-[10px] text-accent/60">
+                  获取：{{ getItemSource(mat.itemId) }}
+                </p>
               </div>
               <div class="flex items-center justify-between mt-0.5">
                 <span class="text-xs text-muted">铜钱</span>
@@ -298,11 +586,17 @@
 
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
             <p class="text-xs text-muted mb-1">所需材料</p>
-            <div v-for="mat in craftModal.materials" :key="mat.itemId" class="flex items-center justify-between">
-              <span class="text-xs text-muted">{{ getItemName(mat.itemId) }}</span>
-              <span class="text-xs" :class="getCombinedItemCount(mat.itemId) >= mat.quantity * displayQty ? '' : 'text-danger'">
-                {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity * displayQty }}
-              </span>
+            <!-- 材料不足时直接标出哪儿能弄到，省得玩家满世界找 -->
+            <div v-for="mat in craftModal.materials" :key="mat.itemId" class="mb-1 last:mb-0">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-muted">{{ getItemName(mat.itemId) }}</span>
+                <span class="text-xs" :class="getCombinedItemCount(mat.itemId) >= mat.quantity * displayQty ? '' : 'text-danger'">
+                  {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity * displayQty }}
+                </span>
+              </div>
+              <p v-if="getCombinedItemCount(mat.itemId) < mat.quantity * displayQty" class="text-[10px] text-accent/60">
+                获取：{{ getItemSource(mat.itemId) }}
+              </p>
             </div>
             <div v-if="craftModal.cost > 0" class="flex items-center justify-between mt-0.5">
               <span class="text-xs text-muted">铜钱</span>
@@ -367,7 +661,7 @@
 
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { Hammer, Trash2, Package, Boxes, X, ArrowUpCircle } from 'lucide-vue-next'
+  import { Hammer, Trash2, Package, Boxes, X, ArrowUpCircle, Play, Pencil, ChevronUp, ChevronDown } from 'lucide-vue-next'
   import Button from '@/components/game/Button.vue'
   import type { MachineType, AnimalBuildingType, ChestTier, Quality } from '@/types'
   import { QUALITY_NAMES } from '@/composables/useFarmActions'
@@ -395,6 +689,7 @@
     getProcessingRecipeById
   } from '@/data/processing'
   import { getItemById, CHEST_DEFS, CHEST_TIER_ORDER } from '@/data/items'
+  import { getItemSource } from '@/data'
   import { ACTION_TIME_COSTS } from '@/data/timeConstants'
   import { sfxClick } from '@/composables/useAudio'
   import { addLog } from '@/composables/useGameLog'
@@ -423,7 +718,12 @@
   /** 种子制造机：按品质展开配方列表 */
   const getSeedMakerQualityRecipes = (machineType: MachineType) => {
     const recipes = processingStore.getAvailableRecipes(machineType)
-    const result: { recipe: (typeof recipes)[number]; quality: Quality; count: number; available: boolean }[] = []
+    const result: {
+      recipe: (typeof recipes)[number]
+      quality: Quality
+      count: number
+      available: boolean
+    }[] = []
     for (const recipe of recipes) {
       if (!recipe.inputItemId) continue
       let hasAny = false
@@ -431,40 +731,100 @@
         const count = getCombinedItemCount(recipe.inputItemId, q)
         if (count > 0) {
           hasAny = true
-          result.push({ recipe, quality: q, count, available: count >= recipe.inputQuantity })
+          result.push({
+            recipe,
+            quality: q,
+            count,
+            available: count >= recipe.inputQuantity
+          })
         }
       }
       // 无任何品质库存时，仅在非筛选模式下显示一条（普通品质，不可用）
       if (!hasAny && !onlyAvailable.value) {
-        result.push({ recipe, quality: 'normal' as Quality, count: 0, available: false })
+        result.push({
+          recipe,
+          quality: 'normal' as Quality,
+          count: 0,
+          available: false
+        })
       }
     }
     return result
   }
 
-  // === 机器分组（相同设备排到一起，可折叠） ===
+  // === 加工站（同类设备合并，设备数 = 并行槽位数） ===
 
-  interface MachineGroup {
+  interface MachineStation {
     machineType: MachineType
+    /** 玩家自定义名（未改名则等于 baseName） */
     name: string
-    slots: { slot: (typeof processingStore.machines)[number]; originalIndex: number }[]
+    /** 设备原名 */
+    baseName: string
+    stats: { total: number; idle: number; running: number; ready: number }
+    slots: {
+      slot: (typeof processingStore.machines)[number]
+      originalIndex: number
+    }[]
   }
 
-  const machineGroups = computed((): MachineGroup[] => {
-    const groupMap = new Map<MachineType, MachineGroup>()
-    // 按 PROCESSING_MACHINES 定义顺序作为排序基准
+  const stations = computed((): MachineStation[] => {
+    const map = new Map<MachineType, MachineStation>()
+    // 按 PROCESSING_MACHINES 定义顺序作为默认排序基准
     const typeOrder = new Map(PROCESSING_MACHINES.map((m, i) => [m.id as MachineType, i]))
     for (let i = 0; i < processingStore.machines.length; i++) {
       const slot = processingStore.machines[i]!
-      let group = groupMap.get(slot.machineType)
-      if (!group) {
-        group = { machineType: slot.machineType, name: getMachineName(slot.machineType), slots: [] }
-        groupMap.set(slot.machineType, group)
+      let station = map.get(slot.machineType)
+      if (!station) {
+        const baseName = getMachineName(slot.machineType)
+        station = {
+          machineType: slot.machineType,
+          baseName,
+          name: processingStore.getStationName(slot.machineType, baseName),
+          stats: processingStore.getStationStats(slot.machineType),
+          slots: []
+        }
+        map.set(slot.machineType, station)
       }
-      group.slots.push({ slot, originalIndex: i })
+      station.slots.push({ slot, originalIndex: i })
     }
-    return [...groupMap.values()].sort((a, b) => (typeOrder.get(a.machineType) ?? 99) - (typeOrder.get(b.machineType) ?? 99))
+    const list = [...map.values()].sort((a, b) => (typeOrder.get(a.machineType) ?? 99) - (typeOrder.get(b.machineType) ?? 99))
+    // 玩家自定义顺序优先
+    const ordered = processingStore.sortStationTypes(list.map(s => s.machineType))
+    return ordered.map(t => list.find(s => s.machineType === t)!).filter(Boolean)
   })
+
+  // === 加工站改名与排序 ===
+
+  const renamingType = ref<MachineType | null>(null)
+  const renameInput = ref('')
+
+  const startRename = (type: MachineType, currentName: string, baseName: string) => {
+    renamingType.value = type
+    renameInput.value = currentName === baseName ? '' : currentName
+  }
+
+  const confirmRename = () => {
+    if (!renamingType.value) return
+    processingStore.renameStation(renamingType.value, renameInput.value)
+    renamingType.value = null
+  }
+
+  const handleMoveStation = (type: MachineType, direction: -1 | 1) => {
+    processingStore.moveStation(
+      type,
+      direction,
+      stations.value.map(s => s.machineType)
+    )
+  }
+
+  /** 全部工站累计可收取份数 */
+  const totalReady = computed(() => processingStore.machines.filter(m => m.ready).length)
+
+  /** 槽位占用条的百分比宽度 */
+  const pct = (part: number, total: number): string => {
+    if (total <= 0) return '0%'
+    return `${Math.round((part / total) * 100)}%`
+  }
 
   const toggleGroup = (type: MachineType) => {
     processingStore.toggleGroup(type)
@@ -473,6 +833,103 @@
   /** 获取某类型机器的已有数量 */
   const getMachineCountByType = (type: MachineType): number => {
     return processingStore.machines.filter(m => m.machineType === type).length
+  }
+
+  // === 投料弹窗 ===
+
+  interface TaskModalState {
+    machineType: MachineType
+    recipeId: string | null
+    quality?: Quality
+  }
+
+  const taskModal = ref<TaskModalState | null>(null)
+  const taskQty = ref(1)
+
+  const openTaskModal = (machineType: MachineType) => {
+    taskModal.value = { machineType, recipeId: null }
+    taskQty.value = 1
+  }
+
+  const closeTaskModal = () => {
+    taskModal.value = null
+  }
+
+  const selectTaskRecipe = (recipeId: string, quality?: Quality) => {
+    if (!taskModal.value) return
+    taskModal.value = { ...taskModal.value, recipeId, quality }
+    taskQty.value = maxTaskQty.value
+  }
+
+  const taskRecipe = computed(() => (taskModal.value?.recipeId ? getProcessingRecipeById(taskModal.value.recipeId) : null))
+
+  /** 当前工站的空闲槽位数 */
+  const taskIdleSlots = computed(() => {
+    if (!taskModal.value) return 0
+    return processingStore.getStationStats(taskModal.value.machineType).idle
+  })
+
+  /** 可投料份数上限 = min(空闲槽位, 材料够做几份) */
+  const maxTaskQty = computed(() => {
+    const recipe = taskRecipe.value
+    if (!recipe) return 1
+    let max = taskIdleSlots.value
+    if (recipe.inputItemId) {
+      const owned = taskModal.value?.quality
+        ? getCombinedItemCount(recipe.inputItemId, taskModal.value.quality)
+        : getCombinedItemCount(recipe.inputItemId)
+      max = Math.min(max, Math.floor(owned / recipe.inputQuantity))
+    }
+    return Math.max(1, max)
+  })
+
+  const setTaskQty = (val: number) => {
+    taskQty.value = Math.max(1, Math.min(val, maxTaskQty.value))
+  }
+  const addTaskQty = (delta: number) => setTaskQty(taskQty.value + delta)
+  const onTaskQtyInput = (e: Event) => {
+    const val = parseInt((e.target as HTMLInputElement).value, 10)
+    if (!isNaN(val)) setTaskQty(val)
+  }
+
+  const confirmTask = () => {
+    const modal = taskModal.value
+    if (!modal?.recipeId) return
+    const started = processingStore.startProcessingBatch(modal.machineType, modal.recipeId, taskQty.value, modal.quality)
+    if (started > 0) {
+      sfxClick()
+      const recipe = getProcessingRecipeById(modal.recipeId)
+      const qualityLabel = modal.quality && modal.quality !== 'normal' ? `(${QUALITY_NAMES[modal.quality]})` : ''
+      addLog(
+        `${getMachineName(modal.machineType)}开工${started}份${recipe?.name ?? ''}${qualityLabel}，${recipe?.processingDays ?? '?'}天后完成。`
+      )
+    } else {
+      addLog('原料不足或没有空闲槽位。')
+    }
+    taskModal.value = null
+  }
+
+  // === 工站批量操作 ===
+
+  const handleCollectAll = (machineType?: MachineType) => {
+    const count = processingStore.collectAllReady(machineType)
+    if (count > 0) {
+      sfxClick()
+      addLog(`收取了${count}份加工成品。`)
+    }
+  }
+
+  const handleCancelAll = (machineType: MachineType) => {
+    const count = processingStore.cancelAllProcessing(machineType)
+    if (count > 0) {
+      addLog(`${getMachineName(machineType)}停工${count}个槽位，原料已退回。`)
+    }
+  }
+
+  const handleRemoveOne = (machineType: MachineType) => {
+    if (processingStore.removeOneFromStation(machineType)) {
+      addLog(`拆除了一台${getMachineName(machineType)}，制作材料已退还。`)
+    }
   }
 
   // === 工坊升级 ===
@@ -816,7 +1273,8 @@
   const handleCraftMachine = (machineType: MachineType) => {
     if (processingStore.craftMachine(machineType)) {
       sfxClick()
-      addLog(`制造了${getMachineName(machineType)}并放置到加工区。`)
+      const count = getMachineCountByType(machineType)
+      addLog(`建造了一台${getMachineName(machineType)}，加工站并行槽位增至${count}个。`)
       const tr = gameStore.advanceTime(ACTION_TIME_COSTS.craftMachine)
       if (tr.message) addLog(tr.message)
       if (tr.passedOut) {
@@ -1050,6 +1508,7 @@
 
   // === 加工处理 ===
 
+  /** 单台视图：给指定机器投一份料 */
   const handleStartProcessing = (slotIndex: number, recipeId: string, quality?: Quality) => {
     if (processingStore.startProcessing(slotIndex, recipeId, quality)) {
       sfxClick()
@@ -1057,7 +1516,17 @@
       const qualityLabel = quality && quality !== 'normal' ? `(${QUALITY_NAMES[quality]})` : ''
       addLog(`开始加工${recipe?.name ?? recipeId}${qualityLabel}，需要${recipe?.processingDays ?? '?'}天。`)
     } else {
-      addLog('原料不足或机器正在使用。')
+      addLog('原料不足或该设备正在使用。')
+    }
+  }
+
+  /** 单台视图：拆除指定的那一台 */
+  const handleRemoveMachine = (slotIndex: number) => {
+    const slot = processingStore.machines[slotIndex]
+    if (!slot) return
+    const name = getMachineName(slot.machineType)
+    if (processingStore.removeMachine(slotIndex)) {
+      addLog(`拆除了${name}，制作材料已退还。`)
     }
   }
 
@@ -1070,21 +1539,12 @@
     }
   }
 
-  const handleRemoveMachine = (slotIndex: number) => {
-    const slot = processingStore.machines[slotIndex]
-    if (!slot) return
-    const name = getMachineName(slot.machineType)
-    if (processingStore.removeMachine(slotIndex)) {
-      addLog(`拆除了${name}，制作材料已退还。`)
-    }
-  }
-
   const handleCancelProcessing = (slotIndex: number) => {
     const slot = processingStore.machines[slotIndex]
     if (!slot) return
     const name = getMachineName(slot.machineType)
     if (processingStore.cancelProcessing(slotIndex)) {
-      addLog(`${name}已停止加工，原料已退回。`)
+      addLog(`${name}的一个槽位已停工，原料已退回。`)
     }
   }
 </script>

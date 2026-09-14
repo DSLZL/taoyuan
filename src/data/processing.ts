@@ -1736,10 +1736,11 @@ export const SPRINKLERS: SprinklerDef[] = [
     description: '自动灌溉周围8块地。',
     range: 8,
     craftCost: [
-      { itemId: 'copper_bar', quantity: 3 },
-      { itemId: 'iron_bar', quantity: 1 }
+      { itemId: 'copper_bar', quantity: 6 },
+      { itemId: 'iron_bar', quantity: 2 },
+      { itemId: 'quartz', quantity: 2 }
     ],
-    craftMoney: 500
+    craftMoney: 1500
   },
   {
     id: 'gold_sprinkler',
@@ -1747,11 +1748,12 @@ export const SPRINKLERS: SprinklerDef[] = [
     description: '自动灌溉周围5×5共24块地。',
     range: 24,
     craftCost: [
-      { itemId: 'gold_bar', quantity: 2 },
-      { itemId: 'iron_bar', quantity: 2 },
-      { itemId: 'quartz', quantity: 1 }
+      { itemId: 'gold_bar', quantity: 6 },
+      { itemId: 'iron_bar', quantity: 4 },
+      { itemId: 'crystal_ore', quantity: 3 },
+      { itemId: 'quartz', quantity: 5 }
     ],
-    craftMoney: 1500
+    craftMoney: 8000
   }
 ]
 
@@ -1988,6 +1990,21 @@ export const getSprinklerById = (id: string): SprinklerDef | undefined => {
 export const getFertilizerById = (id: string): FertilizerDef | undefined => {
   return FERTILIZERS.find(f => f.id === id)
 }
+
+/**
+ * 肥料档次。数值越大越好，用于判断能否覆盖已施的肥。
+ * 保湿土与生长激素作用不同，按各自体系排序即可，不允许互相顶替。
+ */
+const FERTILIZER_RANKS: Record<string, number> = {
+  basic_fertilizer: 1,
+  quality_fertilizer: 2,
+  speed_gro: 2,
+  deluxe_speed_gro: 3,
+  retaining_soil: 2
+}
+
+/** 取肥料档次，未知肥料按最低档处理 */
+export const getFertilizerRank = (id: string): number => FERTILIZER_RANKS[id] ?? 1
 
 export const getBaitById = (id: string): BaitDef | undefined => {
   return BAITS.find(b => b.id === id)

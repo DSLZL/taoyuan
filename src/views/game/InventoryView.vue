@@ -15,15 +15,60 @@
     <!-- 页签切换 -->
     <div class="flex space-x-1 mb-3">
       <Button class="flex-1 justify-center" :class="{ '!bg-accent !text-bg': tab === 'items' }" @click="tab = 'items'">物品</Button>
+      <Button class="flex-1 justify-center" :class="{ '!bg-accent !text-bg': tab === 'seeds' }" @click="tab = 'seeds'">
+        种子{{ inventoryStore.seedItems.length > 0 ? `(${inventoryStore.seedItems.length})` : '' }}
+      </Button>
       <Button class="flex-1 justify-center" :class="{ '!bg-accent !text-bg': tab === 'tools' }" @click="tab = 'tools'">装备</Button>
       <Button
         class="flex-1 justify-center"
-        :class="{ '!bg-danger !text-text': tab === 'temp', 'text-danger': tab !== 'temp' && inventoryStore.tempItems.length > 0 }"
+        :class="{
+          '!bg-danger !text-text': tab === 'temp',
+          'text-danger': tab !== 'temp' && inventoryStore.tempItems.length > 0
+        }"
         @click="tab = 'temp'"
       >
         临时{{ inventoryStore.tempItems.length > 0 ? `(${inventoryStore.tempItems.length})` : '' }}
       </Button>
     </div>
+
+    <!-- 背包扩容引导：格子紧张时直接告诉玩家去哪儿升级 -->
+    <p v-if="tab === 'items' && showCapacityHint" class="text-[10px] text-accent/70 mb-2">
+      背包快满了。可在「桃源商圈 → 万物铺」花铜钱扩容（当前
+      {{ inventoryStore.capacity }} 格，最多 60 格）。
+    </p>
+
+    <!-- 种子袋页：种子独立存放，不占背包格 -->
+    <template v-if="tab === 'seeds'">
+      <p class="text-[10px] text-muted/60 mb-2">种子存放在种子袋里，不占用背包格子，也没有数量上限。</p>
+      <div v-if="inventoryStore.seedItems.length > 1" class="flex justify-end mb-1.5">
+        <Button class="py-0 px-1.5" :icon="ArrowDown01" :icon-size="12" @click="inventoryStore.sortSeedBag()">整理</Button>
+      </div>
+      <div v-if="inventoryStore.seedItems.length > 0" class="grid grid-cols-3 md:grid-cols-5 gap-1.5">
+        <div
+          v-for="(item, idx) in inventoryStore.seedItems"
+          :key="'seed-' + idx"
+          class="border border-accent/20 rounded-xs p-1.5 text-center cursor-pointer hover:bg-accent/5 transition-colors"
+          @click="activeItemKey = item.itemId + ':' + item.quality"
+        >
+          <div
+            class="text-xs truncate"
+            :class="{
+              'text-quality-fine': item.quality === 'fine',
+              'text-quality-excellent': item.quality === 'excellent',
+              'text-quality-supreme': item.quality === 'supreme'
+            }"
+          >
+            {{ getItemById(item.itemId)?.name }}
+          </div>
+          <div class="text-xs text-muted">×{{ item.quantity }}</div>
+        </div>
+      </div>
+      <div v-else class="flex flex-col items-center justify-center py-4 text-muted">
+        <Sprout :size="24" />
+        <p class="text-xs mt-1">种子袋是空的</p>
+        <p class="text-[10px] text-muted/50 mt-0.5">去万物铺买些种子吧</p>
+      </div>
+    </template>
 
     <!-- 物品页 -->
     <template v-if="tab === 'items'">
@@ -171,7 +216,9 @@
                 <span class="text-xs" :class="inventoryStore.equippedHatIndex === idx ? 'text-accent' : ''">
                   {{ getHatById(hat.defId)?.name ?? hat.defId }}
                 </span>
-                <p class="text-[10px] text-muted truncate">{{ getHatById(hat.defId)?.description }}</p>
+                <p class="text-[10px] text-muted truncate">
+                  {{ getHatById(hat.defId)?.description }}
+                </p>
               </div>
               <Button
                 class="py-0 px-1.5 shrink-0 ml-2"
@@ -210,7 +257,9 @@
                 <span class="text-xs" :class="inventoryStore.equippedShoeIndex === idx ? 'text-accent' : ''">
                   {{ getShoeById(shoe.defId)?.name ?? shoe.defId }}
                 </span>
-                <p class="text-[10px] text-muted truncate">{{ getShoeById(shoe.defId)?.description }}</p>
+                <p class="text-[10px] text-muted truncate">
+                  {{ getShoeById(shoe.defId)?.description }}
+                </p>
               </div>
               <Button
                 class="py-0 px-1.5 shrink-0 ml-2"
@@ -257,7 +306,9 @@
                 <span class="text-xs" :class="isRingEquipped(idx) ? 'text-accent' : ''">
                   {{ getRingById(ring.defId)?.name ?? ring.defId }}
                 </span>
-                <p class="text-[10px] text-muted truncate">{{ getRingById(ring.defId)?.description }}</p>
+                <p class="text-[10px] text-muted truncate">
+                  {{ getRingById(ring.defId)?.description }}
+                </p>
               </div>
               <div class="flex space-x-1 shrink-0 ml-2">
                 <Button
@@ -427,7 +478,9 @@
             <span class="text-xs text-danger ml-1">（临时）</span>
           </p>
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
-            <p class="text-xs text-muted">{{ activeTempItemDef?.description }}</p>
+            <p class="text-xs text-muted">
+              {{ activeTempItemDef?.description }}
+            </p>
           </div>
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
             <div class="flex items-center justify-between">
@@ -555,8 +608,9 @@
             >
               使用
             </Button>
-            <!-- 丢弃 -->
-            <template v-if="!activeItem.locked">
+            <!-- 丢弃：限定物品不提供丢弃入口，直接说明原因 -->
+            <p v-if="isProtectedItem(activeItem.itemId)" class="text-[10px] text-accent/70 text-center">限定物品，无法出售或丢弃</p>
+            <template v-else-if="!activeItem.locked">
               <div v-if="discardMode" class="flex items-center space-x-1">
                 <input
                   v-model.number="discardQty"
@@ -769,10 +823,26 @@
 
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { Apple, Archive, ArrowDown01, ArrowRight, BookMarked, Filter, Lock, LockOpen, Package, Trash2, X, Zap } from 'lucide-vue-next'
+  import {
+    Apple,
+    Archive,
+    ArrowDown01,
+    ArrowRight,
+    BookMarked,
+    Filter,
+    Lock,
+    LockOpen,
+    Package,
+    Sprout,
+    Trash2,
+    X,
+    Zap
+  } from 'lucide-vue-next'
   import Button from '@/components/game/Button.vue'
   import { useCookingStore } from '@/stores/useCookingStore'
-  import { useGameStore } from '@/stores/useGameStore'
+  import { useGameStore, WEATHER_NAMES } from '@/stores/useGameStore'
+  import { TOTEM_IDS, getTotemById } from '@/data/totems'
+  import { isProtectedItem } from '@/data/items'
   import { useInventoryStore } from '@/stores/useInventoryStore'
   import { usePlayerStore } from '@/stores/usePlayerStore'
   import { useSettingsStore } from '@/stores/useSettingsStore'
@@ -796,7 +866,13 @@
 
   // === 页签 ===
 
-  const tab = ref<'items' | 'tools' | 'temp'>('items')
+  const tab = ref<'items' | 'seeds' | 'tools' | 'temp'>('items')
+
+  /** 剩余格子 ≤5 且还没满级时，提示去哪儿扩容 */
+  const showCapacityHint = computed(() => {
+    if (inventoryStore.capacity >= 60) return false
+    return inventoryStore.capacity - inventoryStore.items.length <= 5
+  })
 
   // === 物品筛选 ===
 
@@ -1224,10 +1300,17 @@
 
   const activeItemKey = ref<string | null>(null)
 
+  /** 在背包或种子袋中查找指定物品栈（种子存在种子袋里） */
+  const findSlot = (itemId: string | undefined, quality: string | undefined) => {
+    if (!itemId) return undefined
+    const pool = inventoryStore.isSeedItem(itemId) ? inventoryStore.seedItems : inventoryStore.items
+    return pool.find(i => i.itemId === itemId && i.quality === quality)
+  }
+
   const activeItem = computed(() => {
     if (!activeItemKey.value) return null
     const [itemId, quality] = activeItemKey.value.split(':')
-    return inventoryStore.items.find(i => i.itemId === itemId && i.quality === quality) ?? null
+    return findSlot(itemId, quality) ?? null
   })
 
   const activeItemDef = computed(() => {
@@ -1269,7 +1352,7 @@
         addLog(result.message)
       }
       // 物品消耗完则关闭弹窗
-      if (!inventoryStore.items.find(i => i.itemId === itemId && i.quality === quality)) {
+      if (!findSlot(itemId, quality)) {
         activeItemKey.value = null
       }
       return
@@ -1289,23 +1372,24 @@
     msg += '。'
     addLog(msg)
     // 物品消耗完则关闭弹窗
-    if (!inventoryStore.items.find(i => i.itemId === itemId && i.quality === quality)) {
+    if (!findSlot(itemId, quality)) {
       activeItemKey.value = null
     }
   }
 
   /** 可使用的特殊物品 */
-  const USABLE_ITEMS = new Set(['rain_totem', 'stamina_fruit'])
+  const USABLE_ITEMS = new Set(['stamina_fruit', ...TOTEM_IDS])
 
   const isUsable = (itemId: string): boolean => {
     return USABLE_ITEMS.has(itemId)
   }
 
   const handleUse = (itemId: string, quality: Quality) => {
-    if (itemId === 'rain_totem') {
+    const totem = getTotemById(itemId)
+    if (totem) {
       if (!inventoryStore.removeItem(itemId, 1, quality)) return
-      gameStore.setTomorrowWeather('rainy')
-      addLog('你使用了雨图腾，明天将会下雨。')
+      gameStore.setTomorrowWeather(totem.weather)
+      addLog(`你使用了${totem.name}，明天的天气将变为「${WEATHER_NAMES[totem.weather]}」。`)
     }
     if (itemId === 'stamina_fruit') {
       if (playerStore.staminaCapLevel >= 4) {
@@ -1317,7 +1401,7 @@
       addLog(`食用了仙桃，体力上限永久提升至${playerStore.maxStamina}！`)
     }
     // 物品消耗完则关闭弹窗
-    if (!inventoryStore.items.find(i => i.itemId === itemId && i.quality === quality)) {
+    if (!findSlot(itemId, quality)) {
       activeItemKey.value = null
     }
   }
@@ -1342,13 +1426,18 @@
     if (!activeItem.value) return
     const { itemId, quality } = activeItem.value
     const name = activeItemDef.value?.name ?? ''
+    if (isProtectedItem(itemId)) {
+      addLog(`${name}是限定物品，不能丢弃。`)
+      discardMode.value = false
+      return
+    }
     const qty = Math.min(discardQty.value, activeItem.value.quantity)
     if (qty <= 0) return
     if (!inventoryStore.removeItem(itemId, qty, quality)) return
     addLog(`丢弃了${name}×${qty}。`)
     discardMode.value = false
     // 物品消耗完则关闭弹窗
-    if (!inventoryStore.items.find(i => i.itemId === itemId && i.quality === quality)) {
+    if (!findSlot(itemId, quality)) {
       activeItemKey.value = null
     }
   }

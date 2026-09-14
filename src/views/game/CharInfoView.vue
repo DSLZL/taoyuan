@@ -151,7 +151,9 @@
                 >
                   <div class="min-w-0">
                     <span class="text-xs" :class="isRingInCurrentSlot(idx) ? 'text-accent' : ''">{{ ring.name }}</span>
-                    <p class="text-[10px] text-muted truncate">{{ ring.effectText }}</p>
+                    <p class="text-[10px] text-muted truncate">
+                      {{ ring.effectText }}
+                    </p>
                   </div>
                   <span v-if="isRingInCurrentSlot(idx)" class="text-[10px] text-accent shrink-0 ml-1">当前</span>
                   <span v-else-if="isRingInOtherSlot(idx)" class="text-[10px] text-muted shrink-0 ml-1">
@@ -184,7 +186,9 @@
                 >
                   <div class="min-w-0">
                     <span class="text-xs" :class="hat.index === inventoryStore.equippedHatIndex ? 'text-accent' : ''">{{ hat.name }}</span>
-                    <p class="text-[10px] text-muted truncate">{{ hat.effectText }}</p>
+                    <p class="text-[10px] text-muted truncate">
+                      {{ hat.effectText }}
+                    </p>
                   </div>
                   <span v-if="hat.index === inventoryStore.equippedHatIndex" class="text-[10px] text-accent shrink-0 ml-1">当前</span>
                 </div>
@@ -216,7 +220,9 @@
                     <span class="text-xs" :class="shoe.index === inventoryStore.equippedShoeIndex ? 'text-accent' : ''">
                       {{ shoe.name }}
                     </span>
-                    <p class="text-[10px] text-muted truncate">{{ shoe.effectText }}</p>
+                    <p class="text-[10px] text-muted truncate">
+                      {{ shoe.effectText }}
+                    </p>
                   </div>
                   <span v-if="shoe.index === inventoryStore.equippedShoeIndex" class="text-[10px] text-accent shrink-0 ml-1">当前</span>
                 </div>

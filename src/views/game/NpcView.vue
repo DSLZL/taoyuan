@@ -24,7 +24,26 @@
 
     <!-- 村民 Tab -->
     <div v-if="activeTab === 'villager'">
-      <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">{{ tutorialHint }}</p>
+      <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">
+        {{ tutorialHint }}
+      </p>
+
+      <!-- 此刻分布：让玩家知道该去哪儿碰见谁，不必挨个点名 -->
+      <div class="border border-accent/20 rounded-xs p-2 mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs text-accent">
+            <MapPin :size="12" class="inline" />
+            此刻村民分布
+          </span>
+        </div>
+        <div v-if="spotGroups.length > 0" class="flex flex-col space-y-0.5">
+          <p v-for="g in spotGroups" :key="g.spot" class="text-[10px]">
+            <span class="text-muted">{{ g.name }}：</span>
+            <span class="text-text">{{ g.names.join('、') }}</span>
+          </p>
+        </div>
+        <p v-else class="text-[10px] text-muted">这个时辰大家都回屋了。</p>
+      </div>
 
       <!-- NPC 网格：移动端紧凑，桌面端详细 -->
       <div class="grid grid-cols-4 md:grid-cols-3 gap-1.5 md:gap-2">
@@ -73,7 +92,13 @@
                 <Cake v-if="npcStore.isBirthday(npc.id)" :size="10" class="text-danger" />
               </div>
             </div>
-            <p class="text-[10px] text-muted truncate">{{ npc.role }}</p>
+            <p class="text-[10px] text-muted truncate">
+              {{ npc.role }}
+              <span v-if="npcSpotName(npc.id)" class="text-accent/60">· {{ npcSpotName(npc.id) }}</span>
+            </p>
+            <p class="text-[10px] truncate" :class="levelColor(npcStore.getFriendshipLevel(npc.id))">
+              {{ FRIENDSHIP_LEVEL_INFO[npcStore.getFriendshipLevel(npc.id)].name }}
+            </p>
             <div class="flex items-center justify-between mt-0.5">
               <div class="flex items-center space-x-px">
                 <Heart
@@ -189,7 +214,9 @@
                   知己
                 </span>
               </p>
-              <p class="text-[10px] text-muted/60 mt-0.5">{{ selectedNpcDef?.personality }}</p>
+              <p class="text-[10px] text-muted/60 mt-0.5">
+                {{ selectedNpcDef?.personality }}
+              </p>
             </div>
             <Button @click="selectedNpc = null">关闭</Button>
           </div>
@@ -210,6 +237,30 @@
               <span class="text-xs" :class="levelColor(npcStore.getFriendshipLevel(selectedNpc!))">
                 {{ selectedNpcState?.friendship ?? 0 }}
                 <span class="text-muted/40">/{{ nextHeartThreshold }}</span>
+              </span>
+            </div>
+            <!-- 关系称谓：几心对应什么关系，直接写明 -->
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px]" :class="levelColor(npcStore.getFriendshipLevel(selectedNpc!))">
+                当前关系：{{ FRIENDSHIP_LEVEL_INFO[npcStore.getFriendshipLevel(selectedNpc!)].name }} （{{ heartCount(selectedNpc!) }}心）
+              </span>
+              <span v-if="nextLevelInfo" class="text-[10px] text-muted">
+                距「{{ nextLevelInfo.name }}」还差{{ nextLevelInfo.remain }}点
+              </span>
+              <span v-else class="text-[10px] text-success">已是最高关系</span>
+            </div>
+            <!-- 等级对照 -->
+            <div class="flex flex-wrap">
+              <span
+                v-for="lv in FRIENDSHIP_LEVEL_ORDER"
+                :key="lv"
+                class="text-[10px] border rounded-xs px-1 mr-1 mb-1"
+                :class="
+                  npcStore.getFriendshipLevel(selectedNpc!) === lv ? 'border-accent/40 text-accent' : 'border-accent/10 text-muted/50'
+                "
+              >
+                {{ FRIENDSHIP_LEVEL_INFO[lv].name }}
+                {{ FRIENDSHIP_LEVEL_INFO[lv].hearts }}心
               </span>
             </div>
             <!-- 状态标签 -->
@@ -253,6 +304,8 @@
             <Button class="w-full" :icon="MessageCircle" :disabled="selectedNpcState?.talkedToday" @click="handleTalk">
               {{ selectedNpcState?.talkedToday ? '今天已聊过' : '聊天' }}
             </Button>
+            <!-- 已聊过仍可闲扯：不加好感，但每次都有新内容 -->
+            <Button v-if="selectedNpcState?.talkedToday" class="w-full" :icon="MessageCircle" @click="handleChat">再聊两句</Button>
             <!-- 每日提示按钮 -->
             <Button
               v-if="selectedNpc && npcStore.hasDailyTip(selectedNpc)"
@@ -355,7 +408,10 @@
               <span>知己</span>
             </p>
             <template v-if="selectedNpcState?.zhiji">
-              <p class="text-[10px] text-accent/60 mb-1">{{ selectedNpcDef.gender === 'male' ? '蓝颜知己' : '红颜知己' }} ♦</p>
+              <p class="text-[10px] text-accent/60 mb-1">
+                {{ selectedNpcDef.gender === 'male' ? '蓝颜知己' : '红颜知己' }}
+                ♦
+              </p>
               <Button class="w-full text-danger border-danger/40" @click="showZhijiDissolveConfirm = true">断缘</Button>
             </template>
             <template v-else-if="npcStore.npcStates.some(s => s.zhiji)">
@@ -475,7 +531,9 @@
                   {{ activeGiftDef.name }}
                 </p>
                 <div class="border border-accent/10 rounded-xs p-2 mb-2">
-                  <p class="text-xs text-muted">{{ activeGiftDef.description }}</p>
+                  <p class="text-xs text-muted">
+                    {{ activeGiftDef.description }}
+                  </p>
                 </div>
                 <div class="border border-accent/10 rounded-xs p-2 mb-2">
                   <div class="flex items-center justify-between">
@@ -513,17 +571,32 @@
 
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { MessageCircle, Heart, Gift, Cake, X, Package, Lightbulb, Circle, CircleCheck, Users, Sparkles, Diamond } from 'lucide-vue-next'
+  import {
+    MessageCircle,
+    Heart,
+    Gift,
+    Cake,
+    X,
+    Package,
+    Lightbulb,
+    Circle,
+    CircleCheck,
+    Users,
+    Sparkles,
+    Diamond,
+    MapPin
+  } from 'lucide-vue-next'
   import { useCookingStore } from '@/stores/useCookingStore'
   import { useGameStore } from '@/stores/useGameStore'
   import { useInventoryStore } from '@/stores/useInventoryStore'
-  import { useNpcStore } from '@/stores/useNpcStore'
+  import { useNpcStore, FRIENDSHIP_LEVEL_INFO, FRIENDSHIP_LEVEL_ORDER } from '@/stores/useNpcStore'
   import { usePlayerStore } from '@/stores/usePlayerStore'
   import { useTutorialStore } from '@/stores/useTutorialStore'
   import { useHiddenNpcStore } from '@/stores/useHiddenNpcStore'
   import { NPCS, getNpcById, getItemById, getHeartEventById } from '@/data'
   import { getHiddenNpcById } from '@/data/hiddenNpcs'
   import { ACTION_TIME_COSTS, isNpcAvailable } from '@/data/timeConstants'
+  import { getNpcSpot, getNpcSpotName, SPOT_NAMES, type NpcSpot } from '@/data/npcSchedule'
   import { TIP_NPC_LABELS } from '@/data/npcTips'
   import type { TipNpcId } from '@/data/npcTips'
   import { addLog } from '@/composables/useGameLog'
@@ -563,7 +636,7 @@
 
   const tutorialHint = computed(() => {
     if (!tutorialStore.enabled || gameStore.year > 1) return null
-    if (npcStore.npcStates.every(n => n.friendship === 0)) return '点击村民头像可以聊天和送礼，经常互动能增进友好度。'
+    if (npcStore.npcStates.every(n => n.friendship === 0)) return '点击村民名称可以聊天和送礼，经常互动能增进友好度。'
     return null
   })
 
@@ -593,6 +666,30 @@
     return isNpcAvailable(npcId, gameStore.day, gameStore.hour, gameStore.season)
   }
 
+  /** 某位村民此刻所在地点名（不在户外则为 null） */
+  const npcSpotName = (npcId: string): string | null => {
+    if (!npcAvailable(npcId)) return null
+    return getNpcSpotName(npcId, gameStore.hour)
+  }
+
+  /** 按地点汇总此刻在外活动的村民 */
+  const spotGroups = computed(() => {
+    const map = new Map<NpcSpot, string[]>()
+    for (const npc of NPCS) {
+      if (!npcAvailable(npc.id)) continue
+      const spot = getNpcSpot(npc.id, gameStore.hour)
+      if (!spot) continue
+      const list = map.get(spot) ?? []
+      list.push(npc.name)
+      map.set(spot, list)
+    }
+    return [...map.entries()].map(([spot, names]) => ({
+      spot,
+      name: SPOT_NAMES[spot],
+      names
+    }))
+  })
+
   const handleSelectNpc = (npcId: string) => {
     if (npcAvailable(npcId)) {
       selectedNpc.value = npcId
@@ -619,6 +716,20 @@
     const f = selectedNpcState.value?.friendship ?? 0
     const hearts = Math.min(10, Math.floor(f / 250))
     return hearts >= 10 ? 2500 : (hearts + 1) * 250
+  })
+
+  /** 下一个关系等级及所差好感（已是最高则为 null） */
+  const nextLevelInfo = computed(() => {
+    if (!selectedNpc.value) return null
+    const current = npcStore.getFriendshipLevel(selectedNpc.value)
+    const idx = FRIENDSHIP_LEVEL_ORDER.indexOf(current)
+    const next = FRIENDSHIP_LEVEL_ORDER[idx + 1]
+    if (!next) return null
+    const info = FRIENDSHIP_LEVEL_INFO[next]
+    return {
+      name: info.name,
+      remain: Math.max(0, info.min - (selectedNpcState.value?.friendship ?? 0))
+    }
   })
 
   /** 弹窗中送礼标签样式 */
@@ -682,7 +793,12 @@
     return true
   })
 
-  const SEASON_NAMES_MAP: Record<string, string> = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' }
+  const SEASON_NAMES_MAP: Record<string, string> = {
+    spring: '春',
+    summer: '夏',
+    autumn: '秋',
+    winter: '冬'
+  }
 
   const qualityTextClass = (q: Quality, fallback = ''): string => {
     if (q === 'fine') return 'text-quality-fine'
@@ -784,6 +900,13 @@
         triggerHeartEvent(heartEvent)
       }
     }
+  }
+
+  /** 闲扯：不加好感也不耗时，纯粹多听几句 */
+  const handleChat = () => {
+    if (!selectedNpc.value) return
+    const message = npcStore.chatWith(selectedNpc.value)
+    if (message) dialogueText.value = message
   }
 
   const handleDailyTip = () => {

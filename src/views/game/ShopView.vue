@@ -1,6 +1,9 @@
 <template>
   <div>
-    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">{{ tutorialHint }}</p>
+    <VillagerPresence spot="shop" />
+    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">
+      {{ tutorialHint }}
+    </p>
 
     <!-- 返回按钮（在子商铺时显示） -->
     <Button v-if="shopStore.currentShopId" class="mb-3 w-full md:w-auto" :icon="ChevronLeft" @click="shopStore.currentShopId = null">
@@ -70,7 +73,9 @@
               >
                 <div>
                   <p class="text-sm">{{ item.name }}</p>
-                  <p class="text-muted text-xs">{{ getTravelerItemDesc(item.itemId, item.quantity) }}</p>
+                  <p class="text-muted text-xs">
+                    {{ getTravelerItemDesc(item.itemId, item.quantity) }}
+                  </p>
                 </div>
                 <span class="text-xs text-accent whitespace-nowrap">{{ discounted(item.price) }}文</span>
               </div>
@@ -185,7 +190,10 @@
             >
               <div>
                 <p class="text-sm">仓库扩建</p>
-                <p class="text-muted text-xs">箱子槽位 {{ warehouseStore.maxChests }} → {{ warehouseStore.maxChests + 1 }}</p>
+                <p class="text-muted text-xs">
+                  箱子槽位 {{ warehouseStore.maxChests }} →
+                  {{ warehouseStore.maxChests + 1 }}
+                </p>
               </div>
               <span class="text-xs text-accent whitespace-nowrap">{{ discounted(warehouseExpandPrice) }}文</span>
             </div>
@@ -284,27 +292,29 @@
               <span class="text-xs text-accent whitespace-nowrap">{{ discounted(WOOD_PRICE) }}文</span>
             </div>
 
-            <!-- 雨图腾 -->
+            <!-- 天气图腾：花大钱买一个确定的明天 -->
             <div
+              v-for="totem in WEATHER_TOTEMS"
+              :key="totem.id"
               class="flex items-center justify-between border border-accent/20 rounded-xs px-3 py-2 cursor-pointer hover:bg-accent/5"
               @click="
                 openBatchBuyModal(
-                  '雨图腾',
-                  '使用后可以让明天下雨',
-                  discounted(RAIN_TOTEM_PRICE),
-                  () => handleBuyItem('rain_totem', RAIN_TOTEM_PRICE, '雨图腾'),
-                  () => playerStore.money >= discounted(RAIN_TOTEM_PRICE),
-                  count => handleBatchBuyItem('rain_totem', RAIN_TOTEM_PRICE, '雨图腾', count),
-                  () => getMaxBuyable(discounted(RAIN_TOTEM_PRICE)),
-                  'rain_totem'
+                  totem.name,
+                  totem.description,
+                  discounted(totem.price),
+                  () => handleBuyItem(totem.id, totem.price, totem.name),
+                  () => playerStore.money >= discounted(totem.price),
+                  count => handleBatchBuyItem(totem.id, totem.price, totem.name, count),
+                  () => getMaxBuyable(discounted(totem.price)),
+                  totem.id
                 )
               "
             >
               <div>
-                <p class="text-sm">雨图腾</p>
-                <p class="text-muted text-xs">使用后可以让明天下雨</p>
+                <p class="text-sm">{{ totem.name }}</p>
+                <p class="text-muted text-xs">{{ totem.description }}</p>
               </div>
-              <span class="text-xs text-accent whitespace-nowrap">{{ discounted(RAIN_TOTEM_PRICE) }}文</span>
+              <span class="text-xs text-accent whitespace-nowrap">{{ discounted(totem.price) }}文</span>
             </div>
           </div>
         </template>
@@ -826,7 +836,9 @@
 
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
             <p class="text-xs text-muted">{{ buyModalData.description }}</p>
-            <p v-for="(line, i) in buyModalData.extraLines" :key="i" class="text-xs text-muted mt-0.5">{{ line }}</p>
+            <p v-for="(line, i) in buyModalData.extraLines" :key="i" class="text-xs text-muted mt-0.5">
+              {{ line }}
+            </p>
           </div>
 
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
@@ -995,6 +1007,7 @@
 </template>
 
 <script setup lang="ts">
+  import VillagerPresence from '@/components/game/VillagerPresence.vue'
   import { ref, computed } from 'vue'
   import {
     ShoppingCart,
@@ -1043,8 +1056,8 @@
   import type { MarketTrend } from '@/data/market'
   import { useTutorialStore } from '@/stores/useTutorialStore'
   import { useAchievementStore } from '@/stores/useAchievementStore'
+  import { WEATHER_TOTEMS } from '@/data/totems'
 
-  const RAIN_TOTEM_PRICE = 300
   const WOOD_PRICE = 50
 
   const shopStore = useShopStore()
@@ -1199,7 +1212,17 @@
     buttonText?: string,
     itemId?: string
   ) => {
-    shopModal.value = { type: 'buy', name, description, price, onBuy, canBuy, extraLines, buttonText, itemId }
+    shopModal.value = {
+      type: 'buy',
+      name,
+      description,
+      price,
+      onBuy,
+      canBuy,
+      extraLines,
+      buttonText,
+      itemId
+    }
   }
 
   const openBatchBuyModal = (
@@ -1845,7 +1868,7 @@
         const def = getItemById(inv.itemId)
         return { ...inv, def, originalIndex: index }
       })
-      .filter(item => item.def && !item.locked && (!allowed || allowed.has(item.def!.category)))
+      .filter(item => item.def && !item.def.protected && !item.locked && (!allowed || allowed.has(item.def!.category)))
   })
 </script>
 

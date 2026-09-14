@@ -348,7 +348,13 @@
               v-for="(item, idx) in currentOpenChest.items"
               :key="idx"
               class="flex items-center justify-between border border-accent/10 rounded-xs px-2 py-1 mr-1"
-              @click="chestItemDetail = { itemId: item.itemId, quality: item.quality, quantity: item.quantity }"
+              @click="
+                chestItemDetail = {
+                  itemId: item.itemId,
+                  quality: item.quality,
+                  quantity: item.quantity
+                }
+              "
             >
               <span class="text-xs truncate mr-2 cursor-pointer hover:underline" :class="qualityTextClass(item.quality)">
                 {{ getItemName(item.itemId) }}
@@ -437,7 +443,9 @@
       >
         <div class="game-panel max-w-xs w-full">
           <div class="flex items-center justify-between mb-2">
-            <p class="text-sm text-accent">{{ chestQtyModal.mode === 'withdraw' ? '取出' : '存入' }}</p>
+            <p class="text-sm text-accent">
+              {{ chestQtyModal.mode === 'withdraw' ? '取出' : '存入' }}
+            </p>
             <Button class="py-0 px-1" :icon="X" :icon-size="12" @click="chestQtyModal = null" />
           </div>
           <p class="text-xs mb-2" :class="qualityTextClass(chestQtyModal.quality)">
@@ -585,7 +593,9 @@
                   制作
                 </Button>
               </div>
-              <p class="text-[10px] text-muted mb-1">{{ CHEST_DEFS[tier].description }}</p>
+              <p class="text-[10px] text-muted mb-1">
+                {{ CHEST_DEFS[tier].description }}
+              </p>
               <div class="flex flex-wrap gap-x-3 gap-y-0.5">
                 <span
                   v-for="mat in CHEST_DEFS[tier].craftCost"
@@ -593,7 +603,8 @@
                   class="text-[10px]"
                   :class="getCombinedItemCount(mat.itemId) >= mat.quantity ? 'text-muted' : 'text-danger'"
                 >
-                  {{ getItemName(mat.itemId) }} {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity }}
+                  {{ getItemName(mat.itemId) }}
+                  {{ getCombinedItemCount(mat.itemId) }}/{{ mat.quantity }}
                 </span>
                 <span class="text-[10px]" :class="playerStore.money >= CHEST_DEFS[tier].craftMoney ? 'text-muted' : 'text-danger'">
                   {{ CHEST_DEFS[tier].craftMoney }}文
@@ -736,7 +747,11 @@
   // === 箱子管理 ===
 
   /** 箱子道具信息弹窗 */
-  const chestItemDetail = ref<{ itemId: string; quality: Quality; quantity: number } | null>(null)
+  const chestItemDetail = ref<{
+    itemId: string
+    quality: Quality
+    quantity: number
+  } | null>(null)
   const chestItemDef = computed(() => {
     if (!chestItemDetail.value) return null
     return getItemById(chestItemDetail.value.itemId) ?? null
@@ -821,7 +836,12 @@
         quantity: Math.floor(mat.quantity * 0.5)
       }))
       .filter(m => m.quantity > 0)
-    return { label: chest.label, tier: chest.tier, itemCount: chest.items.length, refund }
+    return {
+      label: chest.label,
+      tier: chest.tier,
+      itemCount: chest.items.length,
+      refund
+    }
   })
 
   const openDismantleConfirm = (chestId: string) => {
@@ -939,7 +959,11 @@
   const handleDepositDuplicates = () => {
     if (!openChestId.value) return
     const chestId = openChestId.value
-    const snapshot = duplicateDepositItems.value.map(i => ({ itemId: i.itemId, quality: i.quality, quantity: i.quantity }))
+    const snapshot = duplicateDepositItems.value.map(i => ({
+      itemId: i.itemId,
+      quality: i.quality,
+      quantity: i.quantity
+    }))
     let totalDeposited = 0
     let kindCount = 0
     for (const item of snapshot) {

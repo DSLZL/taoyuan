@@ -260,7 +260,12 @@ export const useWarehouseStore = defineStore('warehouse', () => {
     misc: 20
   }
 
-  const qualityOrder: Record<string, number> = { normal: 0, fine: 1, excellent: 2, supreme: 3 }
+  const qualityOrder: Record<string, number> = {
+    normal: 0,
+    fine: 1,
+    excellent: 2,
+    supreme: 3
+  }
 
   /** 一键整理箱子（按分类→物品ID→品质排序，合并同类栈） */
   const sortChest = (chestId: string) => {
@@ -282,7 +287,11 @@ export const useWarehouseStore = defineStore('warehouse', () => {
       let remaining = item.quantity
       while (remaining > 0) {
         const batch = Math.min(remaining, MAX_STACK)
-        split.push({ itemId: item.itemId, quantity: batch, quality: item.quality })
+        split.push({
+          itemId: item.itemId,
+          quantity: batch,
+          quality: item.quality
+        })
         remaining -= batch
       }
     }

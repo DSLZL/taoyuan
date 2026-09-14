@@ -4,7 +4,7 @@ import type { FarmPlot, FarmSize, Season, Quality } from '@/types'
 import type { SprinklerType, FertilizerType, PlantedFruitTree, FruitTreeType, WildTreeType, PlantedWildTree } from '@/types'
 import type { SeedGenetics } from '@/types/breeding'
 import { getCropById } from '@/data'
-import { SPRINKLERS, getFertilizerById } from '@/data/processing'
+import { SPRINKLERS, getFertilizerById, getFertilizerRank } from '@/data/processing'
 import { FRUIT_TREE_DEFS, MAX_FRUIT_TREES } from '@/data/fruitTrees'
 import { MAX_WILD_TREES, getWildTreeDef } from '@/data/wildTrees'
 import { GREENHOUSE_PLOT_COUNT } from '@/data/buildings'
@@ -330,12 +330,27 @@ export const useFarmStore = defineStore('farm', () => {
     const plot = plots.value[plotId]
     if (!plot) return false
     if (plot.state === 'wasteland') return false
-    if (plot.fertilizer) return false
+    // 允许用更好的肥覆盖差的肥：否则换季自动撒的基础肥会把坑占死，玩家想施高级肥都施不了
+    if (plot.fertilizer && getFertilizerRank(fertilizerType) <= getFertilizerRank(plot.fertilizer)) return false
     plot.fertilizer = fertilizerType
     return true
   }
 
   /** 桃源田庄：季初给所有已耕但无肥料的地块施加肥料（按种植等级升级） */
+  /**
+   * 调整果树在列表中的位置。
+   * 果树是一长串列表，种下的顺序往往和玩家心里的分区对不上，允许自己挪一挪。
+   */
+  const moveFruitTree = (treeId: number, direction: -1 | 1): boolean => {
+    const from = fruitTrees.value.findIndex(t => t.id === treeId)
+    if (from < 0) return false
+    const to = from + direction
+    if (to < 0 || to >= fruitTrees.value.length) return false
+    const list = fruitTrees.value
+    ;[list[from], list[to]] = [list[to]!, list[from]!]
+    return true
+  }
+
   const applyFertileSoil = (farmingLevel: number): { count: number; fertilizerName: string } => {
     const fertilizerId = farmingLevel >= 8 ? 'deluxe_speed_gro' : farmingLevel >= 5 ? 'quality_fertilizer' : 'basic_fertilizer'
     const fertilizerName = farmingLevel >= 8 ? '高级生长激素' : farmingLevel >= 5 ? '优质肥料' : '基础肥料'
@@ -356,7 +371,14 @@ export const useFarmStore = defineStore('farm', () => {
   }
 
   /** 每日更新所有地块 */
-  const dailyUpdate = (isRainy: boolean): { newInfestations: number; pestDeaths: number; newWeeds: number; weedDeaths: number } => {
+  const dailyUpdate = (
+    isRainy: boolean
+  ): {
+    newInfestations: number
+    pestDeaths: number
+    newWeeds: number
+    weedDeaths: number
+  } => {
     const sprinklerWatered = getAllWateredBySprinklers()
     const walletGrowth = useWalletStore().getCropGrowthBonus()
     const gameStore = useGameStore()
@@ -535,7 +557,11 @@ export const useFarmStore = defineStore('farm', () => {
   }
 
   /** 雷暴闪电：25%概率触发，避雷针可吸收 */
-  const lightningStrike = (): { hit: boolean; absorbed: boolean; cropName?: string } => {
+  const lightningStrike = (): {
+    hit: boolean
+    absorbed: boolean
+    cropName?: string
+  } => {
     if (Math.random() > 0.25) return { hit: false, absorbed: false }
 
     // 避雷针吸收
@@ -807,8 +833,14 @@ export const useFarmStore = defineStore('farm', () => {
   }
 
   /** 野树每日更新 */
-  const dailyWildTreeUpdate = (): { products: { treeId: number; productId: string; productName: string }[] } => {
-    const readyProducts: { treeId: number; productId: string; productName: string }[] = []
+  const dailyWildTreeUpdate = (): {
+    products: { treeId: number; productId: string; productName: string }[]
+  } => {
+    const readyProducts: {
+      treeId: number
+      productId: string
+      productName: string
+    }[] = []
     for (const tree of wildTrees.value) {
       if (!tree.mature) {
         tree.growthDays++
@@ -822,7 +854,11 @@ export const useFarmStore = defineStore('farm', () => {
         const def = getWildTreeDef(tree.type)
         if (def && tree.tapDaysElapsed >= def.tapCycleDays) {
           tree.tapReady = true
-          readyProducts.push({ treeId: tree.id, productId: def.tapProduct, productName: def.tapProductName })
+          readyProducts.push({
+            treeId: tree.id,
+            productId: def.tapProduct,
+            productName: def.tapProductName
+          })
         }
       }
     }
@@ -970,7 +1006,10 @@ export const useFarmStore = defineStore('farm', () => {
   }
 
   /** 温室一键收获：返回收获结果列表 */
-  const greenhouseBatchHarvest = (): { cropId: string; genetics: SeedGenetics | null }[] => {
+  const greenhouseBatchHarvest = (): {
+    cropId: string
+    genetics: SeedGenetics | null
+  }[] => {
     const results: { cropId: string; genetics: SeedGenetics | null }[] = []
     for (let i = 0; i < greenhousePlots.value.length; i++) {
       const plot = greenhousePlots.value[i]!
@@ -1070,6 +1109,7 @@ export const useFarmStore = defineStore('farm', () => {
     getAllWateredBySprinklers,
     applyFertilizer,
     applyFertileSoil,
+    moveFruitTree,
     dailyUpdate,
     onSeasonChange,
     lightningStrike,

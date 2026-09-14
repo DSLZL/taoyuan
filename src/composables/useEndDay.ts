@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { useGameStore, SEASON_NAMES, WEATHER_NAMES } from '@/stores/useGameStore'
 import { usePlayerStore } from '@/stores/usePlayerStore'
 import { useFarmStore } from '@/stores/useFarmStore'
@@ -18,6 +19,7 @@ import { useBreedingStore } from '@/stores/useBreedingStore'
 import { useHanhaiStore } from '@/stores/useHanhaiStore'
 import { useFishPondStore } from '@/stores/useFishPondStore'
 import { useTutorialStore } from '@/stores/useTutorialStore'
+import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useHiddenNpcStore } from '@/stores/useHiddenNpcStore'
 import { useMiningStore } from '@/stores/useMiningStore'
 import { getItemById, getTodayEvent, getNpcById, getCropById, getForageItems } from '@/data'
@@ -77,7 +79,11 @@ const getNpcName = (npcId: string): string => {
 }
 
 /** NPC 好感度 → 食谱解锁映射（多层级） */
-const NPC_RECIPE_MAP: { npcId: string; level: 'acquaintance' | 'friendly' | 'bestFriend'; recipeId: string }[] = [
+const NPC_RECIPE_MAP: {
+  npcId: string
+  level: 'acquaintance' | 'friendly' | 'bestFriend'
+  recipeId: string
+}[] = [
   // 相识
   { npcId: 'chen_bo', level: 'acquaintance', recipeId: 'radish_soup' },
   { npcId: 'qiu_yue', level: 'acquaintance', recipeId: 'braised_carp' },
@@ -202,8 +208,16 @@ const checkRecipeUnlocks = () => {
   const inventoryStore = useInventoryStore()
   const ITEM_RECIPE_MAP: { itemId: string; recipeId: string; name: string }[] = [
     { itemId: 'hanhai_spice', recipeId: 'spiced_lamb', name: '香料烤羊' },
-    { itemId: 'hanhai_silk', recipeId: 'silk_dumpling_deluxe', name: '丝路饺子' },
-    { itemId: 'hanhai_cactus', recipeId: 'desert_cactus_soup', name: '仙人掌汤' },
+    {
+      itemId: 'hanhai_silk',
+      recipeId: 'silk_dumpling_deluxe',
+      name: '丝路饺子'
+    },
+    {
+      itemId: 'hanhai_cactus',
+      recipeId: 'desert_cactus_soup',
+      name: '仙人掌汤'
+    },
     { itemId: 'hanhai_date', recipeId: 'date_cake', name: '枣糕' }
   ]
   for (const entry of ITEM_RECIPE_MAP) {
@@ -223,10 +237,26 @@ const checkAchievementRecipes = () => {
   const s = achievementStore.stats
 
   const checks: { condition: boolean; recipeId: string; message: string }[] = [
-    { condition: s.totalFishCaught >= 1, recipeId: 'first_catch_soup', message: '初次钓鱼' },
-    { condition: s.totalCropsHarvested >= 100, recipeId: 'bountiful_porridge', message: '收获百次作物' },
-    { condition: s.highestMineFloor >= 30, recipeId: 'miners_glory', message: '矿洞探索' },
-    { condition: s.totalRecipesCooked >= 20, recipeId: 'chef_special', message: '烹饪达人' },
+    {
+      condition: s.totalFishCaught >= 1,
+      recipeId: 'first_catch_soup',
+      message: '初次钓鱼'
+    },
+    {
+      condition: s.totalCropsHarvested >= 100,
+      recipeId: 'bountiful_porridge',
+      message: '收获百次作物'
+    },
+    {
+      condition: s.highestMineFloor >= 30,
+      recipeId: 'miners_glory',
+      message: '矿洞探索'
+    },
+    {
+      condition: s.totalRecipesCooked >= 20,
+      recipeId: 'chef_special',
+      message: '烹饪达人'
+    },
     {
       condition:
         (['chen_bo', 'liu_niang', 'a_shi', 'qiu_yue', 'lin_lao', 'xiao_man'] as const).filter(id =>
@@ -235,14 +265,26 @@ const checkAchievementRecipes = () => {
       recipeId: 'social_tea',
       message: '社交达人'
     },
-    { condition: s.totalFishCaught >= 20, recipeId: 'anglers_platter', message: '钓鱼好手' },
+    {
+      condition: s.totalFishCaught >= 20,
+      recipeId: 'anglers_platter',
+      message: '钓鱼好手'
+    },
     {
       condition: LEGENDARY_FISH_IDS.some(id => achievementStore.isDiscovered(id)),
       recipeId: 'legendary_feast',
       message: '传说猎人'
     },
-    { condition: s.highestMineFloor >= 50, recipeId: 'abyss_stew', message: '深渊探索' },
-    { condition: achievementStore.discoveredCount >= 50, recipeId: 'collectors_banquet', message: '收藏达人' }
+    {
+      condition: s.highestMineFloor >= 50,
+      recipeId: 'abyss_stew',
+      message: '深渊探索'
+    },
+    {
+      condition: achievementStore.discoveredCount >= 50,
+      recipeId: 'collectors_banquet',
+      message: '收藏达人'
+    }
   ]
 
   for (const check of checks) {
@@ -359,10 +401,17 @@ const rollMorningEvent = ():
   const hasCrops = farmStore.plots.some(p => p.state === 'growing' || p.state === 'harvestable')
   const pool = hasCrops ? MORNING_NARRATIONS : NARRATIONS_NO_LOSS
   const narration = pool[Math.floor(Math.random() * pool.length)]!
-  return { type: 'narration', message: narration.message, effect: narration.effect }
+  return {
+    type: 'narration',
+    message: narration.message,
+    effect: narration.effect
+  }
 }
 
 /** 日结算处理 */
+/** 最近一次昏倒的结算说明；GameLayout 读取后弹窗告知玩家，并负责清空 */
+export const lastPassOutNotice = ref<string | null>(null)
+
 export const handleEndDay = () => {
   sfxSleep()
 
@@ -709,8 +758,8 @@ export const handleEndDay = () => {
     animalStore.markAllFed()
   }
 
-  // 晨间工作：雇工浇水/收获/除草
-  const helperMorningResult = npcStore.processDailyHelpers(['water', 'harvest', 'weed'])
+  // 晨间工作：雇工浇水/收获/除草/收加工品
+  const helperMorningResult = npcStore.processDailyHelpers(['water', 'harvest', 'weed', 'collect'])
   for (const msg of helperMorningResult.messages) addLog(msg)
 
   // 晨间工作：配偶浇水/做饭/收获
@@ -881,7 +930,12 @@ export const handleEndDay = () => {
     addLog(`${pregResult.born.name}出生了！恭喜！${qMsg}`)
   }
   if (pregResult.stageChanged) {
-    const stageLabels: Record<string, string> = { early: '初期', mid: '中期', late: '后期', ready: '待产期' }
+    const stageLabels: Record<string, string> = {
+      early: '初期',
+      mid: '中期',
+      late: '后期',
+      ready: '待产期'
+    }
     addLog(`孕期进入${stageLabels[pregResult.stageChanged.to]}。记得多多照顾配偶。`)
   }
   if (pregResult.miscarriage) {
@@ -889,7 +943,7 @@ export const handleEndDay = () => {
   }
 
   // 子女成长（已出生的子女）
-  npcStore.dailyChildUpdate()
+  for (const milestone of npcStore.dailyChildUpdate()) addLog(milestone)
 
   // NPC 提议要孩子（不自动确认，玩家回家后回应）
   if (npcStore.checkChildProposal()) {
@@ -902,7 +956,12 @@ export const handleEndDay = () => {
   questStore.generateDailyQuests(gameStore.season, gameStore.day)
 
   // 每7天生成一个特殊订单 (第7/14/21/28天, 梯度递增)
-  const specialOrderDays: Record<number, number> = { 7: 1, 14: 2, 21: 3, 28: 4 }
+  const specialOrderDays: Record<number, number> = {
+    7: 1,
+    14: 2,
+    21: 3,
+    28: 4
+  }
   const tier = specialOrderDays[gameStore.day]
   if (tier && !questStore.specialOrder) {
     questStore.generateSpecialOrder(gameStore.season, tier)
@@ -931,6 +990,8 @@ export const handleEndDay = () => {
       moneyLost > 0
         ? `你体力耗尽倒下了……有人把你送回家。丢失了${moneyLost}文。次日仅恢复50%体力。`
         : `你体力耗尽倒下了……次日仅恢复50%体力。`
+    // 记录昏倒说明，由 GameLayout 弹窗告知玩家，避免"一觉醒来莫名其妙少了钱"
+    lastPassOutNotice.value = summary
   } else if (recoveryMode === 'late') {
     const pct = Math.round(recoveryPct * 100)
     summary = `你熬夜到很晚才睡……次日仅恢复${pct}%体力。`
@@ -955,8 +1016,8 @@ export const handleEndDay = () => {
     }
     farmStore.fruitTreeSeasonUpdate(oldSeason === 'winter')
 
-    // 桃源田庄：换季自动施肥（按种植等级升级）
-    if (gameStore.farmMapType === 'standard') {
+    // 桃源田庄：换季自动施肥（默认关闭，可在设置中开启）
+    if (gameStore.farmMapType === 'standard' && useSettingsStore().autoFertilizeOnSeasonChange) {
       const { count: fertCount, fertilizerName } = farmStore.applyFertileSoil(skillStore.getSkill('farming').level)
       if (fertCount > 0) {
         addLog(`桃源沃土滋养大地，${fertCount}块耕地获得了${fertilizerName}。`)
@@ -1175,7 +1236,10 @@ export const handleEndDay = () => {
     if (seasonFish.length > 0) {
       const isRainy = gameStore.isRainy
       const catchCount = isRainy ? 2 + Math.floor(Math.random() * 2) : 1 + Math.floor(Math.random() * 2)
-      const catches: { fishId: string; quality: 'normal' | 'fine' | 'excellent' | 'supreme' }[] = []
+      const catches: {
+        fishId: string
+        quality: 'normal' | 'fine' | 'excellent' | 'supreme'
+      }[] = []
       for (let i = 0; i < catchCount; i++) {
         const fish = seasonFish[Math.floor(Math.random() * seasonFish.length)]!
         const quality: 'normal' | 'fine' = Math.random() < 0.15 ? 'fine' : 'normal'

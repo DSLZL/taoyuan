@@ -1,10 +1,13 @@
 <template>
   <div>
+    <VillagerPresence spot="fishing" />
     <h3 class="text-accent text-sm mb-3">
       <Fish :size="14" class="inline" />
       {{ currentLocationName }}钓鱼
     </h3>
-    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">{{ tutorialHint }}</p>
+    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">
+      {{ tutorialHint }}
+    </p>
 
     <!-- 钓鱼地点 -->
     <div class="border border-accent/20 rounded-xs p-3 mb-4">
@@ -373,7 +376,9 @@
           <button class="absolute top-2 right-2 text-muted hover:text-text" @click="selectedFish = null">
             <X :size="14" />
           </button>
-          <p class="text-sm mb-2" :class="DIFFICULTY_COLORS[selectedFish.difficulty]">{{ selectedFish.name }}</p>
+          <p class="text-sm mb-2" :class="DIFFICULTY_COLORS[selectedFish.difficulty]">
+            {{ selectedFish.name }}
+          </p>
 
           <div class="border border-accent/10 rounded-xs p-2 mb-2">
             <p class="text-xs text-muted">{{ selectedFish.description }}</p>
@@ -406,6 +411,7 @@
 </template>
 
 <script setup lang="ts">
+  import VillagerPresence from '@/components/game/VillagerPresence.vue'
   import { ref, computed } from 'vue'
   import { Fish, X, Target, MapPin, Box, CircleDot } from 'lucide-vue-next'
   import { useAchievementStore } from '@/stores/useAchievementStore'
@@ -495,7 +501,12 @@
 
   const rodTierName = computed(() => {
     const tier = inventoryStore.getTool?.('fishingRod')?.tier ?? 'basic'
-    const names: Record<string, string> = { basic: '竹竿', iron: '铁竿', steel: '钢竿', iridium: '铱金竿' }
+    const names: Record<string, string> = {
+      basic: '竹竿',
+      iron: '铁竿',
+      steel: '钢竿',
+      iridium: '铱金竿'
+    }
     return names[tier] ?? tier
   })
 
@@ -506,16 +517,22 @@
 
   const ALL_BAIT_TYPES: BaitType[] = ['standard_bait', 'wild_bait', 'magic_bait', 'deluxe_bait', 'targeted_bait']
   const availableBaits = computed(() => {
-    return ALL_BAIT_TYPES.map(id => ({ id, name: getBaitById(id)?.name ?? id, count: inventoryStore.getItemCount(id) })).filter(
-      b => b.count > 0
-    )
+    return ALL_BAIT_TYPES.map(id => ({
+      id,
+      name: getBaitById(id)?.name ?? id,
+      count: inventoryStore.getItemCount(id)
+    })).filter(b => b.count > 0)
   })
 
   const availableTackles = computed(() => {
     const tackleTypes: TackleType[] = ['spinner', 'trap_bobber', 'cork_bobber', 'quality_bobber', 'lead_bobber']
     if (!canEquipTackle.value) return []
     return tackleTypes
-      .map(id => ({ id, name: getTackleById(id)?.name ?? id, count: inventoryStore.getItemCount(id) }))
+      .map(id => ({
+        id,
+        name: getTackleById(id)?.name ?? id,
+        count: inventoryStore.getItemCount(id)
+      }))
       .filter(t => t.count > 0)
   })
 
@@ -526,7 +543,12 @@
     for (const loc of FISHING_LOCATIONS) {
       const info = fishingStore.crabPotsByLocation[loc.id as FishingLocation]
       if (info) {
-        result.push({ id: loc.id, name: loc.name, total: info.total, baited: info.baited })
+        result.push({
+          id: loc.id,
+          name: loc.name,
+          total: info.total,
+          baited: info.baited
+        })
       }
     }
     return result
@@ -553,7 +575,12 @@
     legendary: 'text-accent'
   }
 
-  const SEASON_LABEL: Record<string, string> = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' }
+  const SEASON_LABEL: Record<string, string> = {
+    spring: '春',
+    summer: '夏',
+    autumn: '秋',
+    winter: '冬'
+  }
   const WEATHER_LABEL: Record<string, string> = {
     any: '任意',
     sunny: '晴',
@@ -794,7 +821,8 @@
 
     inventoryStore.addItem(itemId, qty)
     achievementStore.discoverItem(itemId)
-    skillStore.addExp('mining', 5)
+    // 淘金无风险、不耗矿镐，经验低于下矿是合理的
+    skillStore.addExp('mining', 3)
     panResult.value = `淘到了${name}！(-${cost}体力)`
     addLog(`淘金获得了${name}。(-${cost}体力)`)
 

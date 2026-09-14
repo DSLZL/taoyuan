@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center justify-between mb-2">
       <h3 class="text-accent text-sm">
         <Home :size="14" class="inline" />
         牧场
@@ -8,7 +8,19 @@
       <Button v-if="unpettedCount > 0" :icon="Hand" @click="handlePetAll">一键抚摸（{{ unpettedCount }}只）</Button>
     </div>
 
-    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">{{ tutorialHint }}</p>
+    <!-- 每日例行操作放在最上面，免得为了喂食放牧来回翻屏 -->
+    <div v-if="animalStore.animals.length > 0" class="flex flex-wrap mb-3">
+      <Button class="mr-1 mb-1" :icon="Wheat" :icon-size="12" :disabled="unfedCount === 0" @click="unfedCount > 0 && handleFeedAll()">
+        {{ unfedCount > 0 ? `喂食全部（${unfedCount}只）` : '都已喂过' }}
+      </Button>
+      <Button class="mr-1 mb-1" :icon="Sun" :icon-size="12" :disabled="!canGrazeOrFeed" @click="canGrazeOrFeed && handleGraze()">
+        {{ grazeButtonLabel }}
+      </Button>
+    </div>
+
+    <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">
+      {{ tutorialHint }}
+    </p>
 
     <!-- 宠物区域 -->
     <div class="mb-4 border border-accent/20 rounded-xs p-3">
@@ -41,7 +53,12 @@
         <div class="flex items-center space-x-1">
           <span class="text-[10px] text-muted w-6">好感</span>
           <div class="flex-1 h-1.5 bg-bg rounded-xs border border-accent/10">
-            <div class="h-full rounded-xs bg-danger transition-all" :style="{ width: Math.floor(animalStore.pet.friendship / 10) + '%' }" />
+            <div
+              class="h-full rounded-xs bg-danger transition-all"
+              :style="{
+                width: Math.floor(animalStore.pet.friendship / 10) + '%'
+              }"
+            />
           </div>
           <span class="text-[10px] text-muted">{{ animalStore.pet.friendship }}/1000</span>
         </div>
@@ -150,7 +167,17 @@
                 <Button class="py-0 px-1" :icon="Hand" :disabled="animal.wasPetted" @click="handlePetAnimal(animal.id)">
                   {{ animal.wasPetted ? '已摸' : '抚摸' }}
                 </Button>
-                <Button class="py-0 px-1" :icon="Coins" @click="sellTarget = { id: animal.id, name: animal.name, type: animal.type }">
+                <Button
+                  class="py-0 px-1"
+                  :icon="Coins"
+                  @click="
+                    sellTarget = {
+                      id: animal.id,
+                      name: animal.name,
+                      type: animal.type
+                    }
+                  "
+                >
                   出售
                 </Button>
               </div>
@@ -168,7 +195,9 @@
                   <div
                     class="h-full rounded-xs transition-all"
                     :class="getMoodBarColor(animal.mood)"
-                    :style="{ width: Math.floor((animal.mood / 255) * 100) + '%' }"
+                    :style="{
+                      width: Math.floor((animal.mood / 255) * 100) + '%'
+                    }"
                   />
                 </div>
                 <span class="text-[10px] text-muted w-6">{{ getMoodText(animal.mood) }}</span>
@@ -176,7 +205,12 @@
               <div v-if="animal.hunger > 0" class="flex items-center space-x-1">
                 <span class="text-[10px] text-muted w-6">饥饿</span>
                 <div class="flex-1 h-1.5 bg-bg rounded-xs border border-accent/10">
-                  <div class="h-full rounded-xs bg-danger transition-all" :style="{ width: Math.floor((animal.hunger / 7) * 100) + '%' }" />
+                  <div
+                    class="h-full rounded-xs bg-danger transition-all"
+                    :style="{
+                      width: Math.floor((animal.hunger / 7) * 100) + '%'
+                    }"
+                  />
                 </div>
                 <span class="text-[10px] text-danger w-6">{{ animal.hunger }}天</span>
               </div>
@@ -227,6 +261,7 @@
               </template>
               <template v-else>
                 <span class="text-xs text-accent">{{ animalStore.getHorse.name }}</span>
+                <span class="text-[10px] text-muted">{{ animalStore.horseBreedDef.name }}</span>
                 <button class="text-muted hover:text-accent" @click="startRename(animalStore.getHorse!.id, animalStore.getHorse!.name)">
                   <Pencil :size="10" />
                 </button>
@@ -252,19 +287,39 @@
               <Button
                 class="py-0 px-1"
                 :icon="Coins"
-                @click="sellTarget = { id: animalStore.getHorse!.id, name: animalStore.getHorse!.name, type: animalStore.getHorse!.type }"
+                @click="
+                  sellTarget = {
+                    id: animalStore.getHorse!.id,
+                    name: animalStore.getHorse!.name,
+                    type: animalStore.getHorse!.type
+                  }
+                "
               >
                 出售
               </Button>
             </div>
           </div>
           <div class="space-y-0.5">
+            <!-- 把马的实际收益写明：品种和好感都会影响赶路与放牧 -->
+            <p class="text-[10px] text-muted/70">
+              {{ animalStore.horseBreedDef.description }}
+            </p>
+            <p class="text-[10px] text-accent/70">
+              赶路耗时 ×{{ animalStore.getHorseTravelTimeMultiplier().toFixed(2) }} · 体力 ×{{
+                animalStore.getHorseTravelStaminaMultiplier().toFixed(2)
+              }}
+              · 放牧协助
+              {{ Math.round(animalStore.getHorseGrazeBonusChance() * 100) }}%
+            </p>
+            <p class="text-[10px] text-muted/50">喂食抚摸提升好感，好感越高赶路越省力、放牧带回的产物越多。</p>
             <div class="flex items-center space-x-1">
               <span class="text-[10px] text-muted w-6">好感</span>
               <div class="flex-1 h-1.5 bg-bg rounded-xs border border-accent/10">
                 <div
                   class="h-full rounded-xs bg-danger transition-all"
-                  :style="{ width: Math.floor(animalStore.getHorse.friendship / 10) + '%' }"
+                  :style="{
+                    width: Math.floor(animalStore.getHorse.friendship / 10) + '%'
+                  }"
                 />
               </div>
             </div>
@@ -274,7 +329,9 @@
                 <div
                   class="h-full rounded-xs transition-all"
                   :class="getMoodBarColor(animalStore.getHorse.mood)"
-                  :style="{ width: Math.floor((animalStore.getHorse.mood / 255) * 100) + '%' }"
+                  :style="{
+                    width: Math.floor((animalStore.getHorse.mood / 255) * 100) + '%'
+                  }"
                 />
               </div>
               <span class="text-[10px] text-muted w-6">{{ getMoodText(animalStore.getHorse.mood) }}</span>
@@ -284,7 +341,9 @@
               <div class="flex-1 h-1.5 bg-bg rounded-xs border border-accent/10">
                 <div
                   class="h-full rounded-xs bg-danger transition-all"
-                  :style="{ width: Math.floor((animalStore.getHorse.hunger / 7) * 100) + '%' }"
+                  :style="{
+                    width: Math.floor((animalStore.getHorse.hunger / 7) * 100) + '%'
+                  }"
                 />
               </div>
               <span class="text-[10px] text-danger w-6">{{ animalStore.getHorse.hunger }}天</span>
@@ -563,13 +622,14 @@
 
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { Hammer, ShoppingCart, Hand, Apple, Home, ArrowUp, Egg, X, Coins, Syringe, Pencil } from 'lucide-vue-next'
+  import { Hammer, ShoppingCart, Hand, Apple, Home, ArrowUp, Egg, X, Coins, Syringe, Pencil, Wheat, Sun } from 'lucide-vue-next'
   import Button from '@/components/game/Button.vue'
   import { useAnimalStore } from '@/stores/useAnimalStore'
   import { useGameStore } from '@/stores/useGameStore'
   import { useInventoryStore } from '@/stores/useInventoryStore'
   import { usePlayerStore } from '@/stores/usePlayerStore'
   import { ANIMAL_BUILDINGS, ANIMAL_DEFS, HAY_ITEM_ID, getItemById, getBuildingUpgrade, INCUBATION_MAP, FEED_DEFS } from '@/data'
+  import { BUILDING_CAPACITY_PER_LEVEL } from '@/data/animals'
   import { ACTION_TIME_COSTS } from '@/data/timeConstants'
   import type { AnimalBuildingType, AnimalType, AnimalDef } from '@/types'
   import { addLog } from '@/composables/useGameLog'
@@ -757,7 +817,7 @@
   const getBuildingCapacity = (type: AnimalBuildingType): number => {
     const level = getBuildingLevel(type)
     if (type === 'stable') return 1
-    return level * 4
+    return level * BUILDING_CAPACITY_PER_LEVEL
   }
 
   const getMoodText = (mood: number): string => {
@@ -796,6 +856,26 @@
     return ''
   })
 
+  /**
+   * 放牧按钮是否可点。
+   * 一早进牧场时牲畜都还没喂，按严格规则会直接变灰；这里允许「未喂食但有饲料」也能点，
+   * 由 handleGraze 先自动喂一遍再放牧，省掉来回两次操作。
+   */
+  const canGrazeOrFeed = computed(() => {
+    if (canGraze.value) return true
+    if (animalStore.grazedToday || gameStore.isRainy) return false
+    if (unfedCount.value === 0) return false
+    // 冬天只有牦牛能放牧，没牦牛就别自动喂了
+    if (gameStore.season === 'winter' && !animalStore.animals.some(a => a.type === 'yak')) return false
+    return selectedFeedCount.value > 0
+  })
+
+  const grazeButtonLabel = computed(() => {
+    if (canGraze.value) return '放牧全部'
+    if (canGrazeOrFeed.value) return '喂食并放牧'
+    return grazeDisabledReason.value || '放牧全部'
+  })
+
   // === 升级弹窗 ===
 
   interface UpgradeModalData {
@@ -820,7 +900,7 @@
       buildingType: type,
       currentName: getBuildingDisplayName(type),
       currentLevel: level,
-      currentCapacity: level * 4,
+      currentCapacity: level * BUILDING_CAPACITY_PER_LEVEL,
       targetName: upgrade.name,
       targetLevel: upgrade.level,
       targetCapacity: upgrade.capacity,
@@ -997,6 +1077,11 @@
   }
 
   const handleGraze = () => {
+    // 还没喂就先喂一遍：一早进牧场时这两步本来就是连着做的
+    if (!canGraze.value && unfedCount.value > 0) {
+      handleFeedAll()
+      if (!canGraze.value) return
+    }
     const result = animalStore.grazeAnimals()
     addLog(result.message)
     if (result.success) {

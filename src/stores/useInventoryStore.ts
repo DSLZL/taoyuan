@@ -29,6 +29,11 @@ const TEMP_CAPACITY = 10
 
 export const useInventoryStore = defineStore('inventory', () => {
   const items = ref<InventoryItem[]>([])
+  /**
+   * 种子袋：种子单独存放，不占用背包格子。
+   * 农户不该因为囤种子而被迫弃游，所以这里不设容量上限，只按 MAX_STACK 分栈。
+   */
+  const seedItems = ref<InventoryItem[]>([])
   const capacity = ref(INITIAL_CAPACITY)
   const tools = ref<Tool[]>([
     { type: 'wateringCan', tier: 'basic' },
@@ -67,7 +72,11 @@ export const useInventoryStore = defineStore('inventory', () => {
   const activePresetId = ref<string | null>(null)
 
   /** 正在升级中的工具（2天等待期） */
-  const pendingUpgrade = ref<{ toolType: ToolType; targetTier: ToolTier; daysRemaining: number } | null>(null)
+  const pendingUpgrade = ref<{
+    toolType: ToolType
+    targetTier: ToolTier
+    daysRemaining: number
+  } | null>(null)
 
   const isFull = computed(() => items.value.length >= capacity.value)
 
@@ -79,7 +88,12 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   /** 获取当前装备的武器 */
   const getEquippedWeapon = (): OwnedWeapon => {
-    return ownedWeapons.value[equippedWeaponIndex.value] ?? { defId: 'wooden_stick', enchantmentId: null }
+    return (
+      ownedWeapons.value[equippedWeaponIndex.value] ?? {
+        defId: 'wooden_stick',
+        enchantmentId: null
+      }
+    )
   }
 
   /** 获取武器攻击力（含附魔加成） */
@@ -147,7 +161,34 @@ export const useInventoryStore = defineStore('inventory', () => {
       equippedWeaponIndex.value--
     }
     const def = getWeaponById(weapon.defId)
-    return { success: true, message: `卖出了${def?.name ?? '武器'}，获得${price}文。` }
+    return {
+      success: true,
+      message: `卖出了${def?.name ?? '武器'}，获得${price}文。`
+    }
+  }
+
+  /** 该物品是否属于种子（种子进种子袋，不占背包格） */
+  const isSeedItem = (itemId: string): boolean => getItemById(itemId)?.category === 'seed'
+
+  /** 种子袋已用栈数（仅用于界面展示，不构成上限） */
+  const seedStackCount = computed(() => seedItems.value.length)
+
+  /** 把种子放进种子袋（无容量上限，按 MAX_STACK 分栈） */
+  const addSeed = (itemId: string, quantity: number, quality: Quality) => {
+    let remaining = quantity
+    for (const slot of seedItems.value) {
+      if (remaining <= 0) break
+      if (slot.itemId === itemId && slot.quality === quality && slot.quantity < MAX_STACK) {
+        const canAdd = Math.min(remaining, MAX_STACK - slot.quantity)
+        slot.quantity += canAdd
+        remaining -= canAdd
+      }
+    }
+    while (remaining > 0) {
+      const batch = Math.min(remaining, MAX_STACK)
+      seedItems.value.push({ itemId, quantity: batch, quality })
+      remaining -= batch
+    }
   }
 
   /** 添加物品到背包 */
@@ -156,6 +197,13 @@ export const useInventoryStore = defineStore('inventory', () => {
     if (!getItemById(itemId)) return false
     // 自动注册到图鉴
     useAchievementStore().discoverItem(itemId)
+
+    // 种子走独立的种子袋，永远不会因为背包满而丢失
+    if (isSeedItem(itemId)) {
+      addSeed(itemId, quantity, quality)
+      return true
+    }
+
     let remaining = quantity
 
     // 先填充已有的同类栈
@@ -208,33 +256,36 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   /** 移除物品（支持跨栈删除）。quality 不传时优先消耗低品质 */
   const removeItem = (itemId: string, quantity: number = 1, quality?: Quality): boolean => {
+    // 种子从种子袋扣除
+    const pool = isSeedItem(itemId) ? seedItems : items
     // 先检查总数是否足够
     const matchQuality = (i: { itemId: string; quality: Quality }) =>
       i.itemId === itemId && (quality === undefined || i.quality === quality)
-    const total = items.value.filter(matchQuality).reduce((sum, i) => sum + i.quantity, 0)
+    const total = pool.value.filter(matchQuality).reduce((sum, i) => sum + i.quantity, 0)
     if (total < quantity) return false
 
     // 不指定品质时按 normal → fine → excellent → supreme 顺序消耗
     const qualityOrder: Quality[] = ['normal', 'fine', 'excellent', 'supreme']
     let remaining = quantity
     for (const q of quality !== undefined ? [quality] : qualityOrder) {
-      for (let i = items.value.length - 1; i >= 0 && remaining > 0; i--) {
-        const slot = items.value[i]!
+      for (let i = pool.value.length - 1; i >= 0 && remaining > 0; i--) {
+        const slot = pool.value[i]!
         if (slot.itemId !== itemId || slot.quality !== q) continue
         const take = Math.min(remaining, slot.quantity)
         slot.quantity -= take
         remaining -= take
         if (slot.quantity <= 0) {
-          items.value.splice(i, 1)
+          pool.value.splice(i, 1)
         }
       }
     }
     return true
   }
 
-  /** 查询物品数量 */
+  /** 查询物品数量（种子自动查种子袋） */
   const getItemCount = (itemId: string, quality?: Quality): number => {
-    return items.value
+    const pool = isSeedItem(itemId) ? seedItems : items
+    return pool.value
       .filter(i => i.itemId === itemId && (quality === undefined || i.quality === quality))
       .reduce((sum, i) => sum + i.quantity, 0)
   }
@@ -294,12 +345,22 @@ export const useInventoryStore = defineStore('inventory', () => {
       let remaining = item.quantity
       while (remaining > 0) {
         const batch = Math.min(remaining, MAX_STACK)
-        split.push({ itemId: item.itemId, quantity: batch, quality: item.quality, locked: item.locked })
+        split.push({
+          itemId: item.itemId,
+          quantity: batch,
+          quality: item.quality,
+          locked: item.locked
+        })
         remaining -= batch
       }
     }
     // 按分类 → 物品ID → 品质排序
-    const qualityOrder: Record<string, number> = { normal: 0, fine: 1, excellent: 2, supreme: 3 }
+    const qualityOrder: Record<string, number> = {
+      normal: 0,
+      fine: 1,
+      excellent: 2,
+      supreme: 3
+    }
     split.sort((a, b) => {
       const defA = getItemById(a.itemId)
       const defB = getItemById(b.itemId)
@@ -310,6 +371,41 @@ export const useInventoryStore = defineStore('inventory', () => {
       return (qualityOrder[a.quality] ?? 0) - (qualityOrder[b.quality] ?? 0)
     })
     items.value = split
+    sortSeedBag()
+  }
+
+  /** 整理种子袋（合并同类栈，按物品ID→品质排序） */
+  const sortSeedBag = () => {
+    const merged: InventoryItem[] = []
+    for (const item of seedItems.value) {
+      const existing = merged.find(m => m.itemId === item.itemId && m.quality === item.quality)
+      if (existing) existing.quantity += item.quantity
+      else merged.push({ ...item })
+    }
+    const split: InventoryItem[] = []
+    for (const item of merged) {
+      let remaining = item.quantity
+      while (remaining > 0) {
+        const batch = Math.min(remaining, MAX_STACK)
+        split.push({
+          itemId: item.itemId,
+          quantity: batch,
+          quality: item.quality
+        })
+        remaining -= batch
+      }
+    }
+    const qualityOrder: Record<string, number> = {
+      normal: 0,
+      fine: 1,
+      excellent: 2,
+      supreme: 3
+    }
+    split.sort((a, b) => {
+      if (a.itemId !== b.itemId) return a.itemId.localeCompare(b.itemId)
+      return (qualityOrder[a.quality] ?? 0) - (qualityOrder[b.quality] ?? 0)
+    })
+    seedItems.value = split
   }
 
   /** 扩容背包 */
@@ -380,7 +476,12 @@ export const useInventoryStore = defineStore('inventory', () => {
   const getToolStaminaMultiplier = (type: ToolType): number => {
     const tool = getTool(type)
     if (!tool) return 1
-    const multipliers: Record<ToolTier, number> = { basic: 1.0, iron: 0.8, steel: 0.6, iridium: 0.4 }
+    const multipliers: Record<ToolTier, number> = {
+      basic: 1.0,
+      iron: 0.8,
+      steel: 0.6,
+      iridium: 0.4
+    }
     return multipliers[tool.tier]
   }
 
@@ -388,7 +489,12 @@ export const useInventoryStore = defineStore('inventory', () => {
   const getToolBatchCount = (type: ToolType): number => {
     const tool = getTool(type)
     if (!tool) return 1
-    const counts: Record<ToolTier, number> = { basic: 1, iron: 2, steel: 4, iridium: 8 }
+    const counts: Record<ToolTier, number> = {
+      basic: 1,
+      iron: 2,
+      steel: 4,
+      iridium: 8
+    }
     return counts[tool.tier]
   }
 
@@ -416,7 +522,11 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   /** 每日升级进度更新，返回完成的工具名（若有） */
-  const dailyUpgradeUpdate = (): { completed: boolean; toolType: ToolType; targetTier: ToolTier } | null => {
+  const dailyUpgradeUpdate = (): {
+    completed: boolean
+    toolType: ToolType
+    targetTier: ToolTier
+  } | null => {
     if (!pendingUpgrade.value) return null
     pendingUpgrade.value.daysRemaining--
     if (pendingUpgrade.value.daysRemaining <= 0) {
@@ -493,7 +603,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     // 修正装备索引
     if (equippedRingSlot1.value > index) equippedRingSlot1.value--
     if (equippedRingSlot2.value > index) equippedRingSlot2.value--
-    return { success: true, message: `卖出了${def?.name ?? '戒指'}，获得${price}文。` }
+    return {
+      success: true,
+      message: `卖出了${def?.name ?? '戒指'}，获得${price}文。`
+    }
   }
 
   /** 查询某种装备效果的合计值（戒指+帽子+鞋子叠加） */
@@ -624,7 +737,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     // 检查铜钱（延迟导入避免循环依赖）
     const playerStore = usePlayerStore()
     if (playerStore.money < def.recipeMoney) {
-      return { success: false, message: `铜钱不足（需要${def.recipeMoney}文）。` }
+      return {
+        success: false,
+        message: `铜钱不足（需要${def.recipeMoney}文）。`
+      }
     }
 
     // 消耗材料
@@ -681,7 +797,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     ownedHats.value.splice(index, 1)
     // 修正装备索引
     if (equippedHatIndex.value > index) equippedHatIndex.value--
-    return { success: true, message: `卖出了${def?.name ?? '帽子'}，获得${price}文。` }
+    return {
+      success: true,
+      message: `卖出了${def?.name ?? '帽子'}，获得${price}文。`
+    }
   }
 
   /** 合成帽子 */
@@ -696,7 +815,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
     const playerStore = usePlayerStore()
     if (playerStore.money < def.recipeMoney) {
-      return { success: false, message: `铜钱不足（需要${def.recipeMoney}文）。` }
+      return {
+        success: false,
+        message: `铜钱不足（需要${def.recipeMoney}文）。`
+      }
     }
     for (const mat of def.recipe) {
       removeItem(mat.itemId, mat.quantity)
@@ -749,7 +871,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     ownedShoes.value.splice(index, 1)
     // 修正装备索引
     if (equippedShoeIndex.value > index) equippedShoeIndex.value--
-    return { success: true, message: `卖出了${def?.name ?? '鞋子'}，获得${price}文。` }
+    return {
+      success: true,
+      message: `卖出了${def?.name ?? '鞋子'}，获得${price}文。`
+    }
   }
 
   /** 合成鞋子 */
@@ -764,7 +889,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
     const playerStore = usePlayerStore()
     if (playerStore.money < def.recipeMoney) {
-      return { success: false, message: `铜钱不足（需要${def.recipeMoney}文）。` }
+      return {
+        success: false,
+        message: `铜钱不足（需要${def.recipeMoney}文）。`
+      }
     }
     for (const mat of def.recipe) {
       removeItem(mat.itemId, mat.quantity)
@@ -877,7 +1005,10 @@ export const useInventoryStore = defineStore('inventory', () => {
     activePresetId.value = id
 
     if (missing.length > 0) {
-      return { success: true, message: `已应用方案「${preset.name}」，但${missing.join('、')}已不在背包中。` }
+      return {
+        success: true,
+        message: `已应用方案「${preset.name}」，但${missing.join('、')}已不在背包中。`
+      }
     }
     return { success: true, message: `已应用方案「${preset.name}」。` }
   }
@@ -937,9 +1068,25 @@ export const useInventoryStore = defineStore('inventory', () => {
     equippedShoeIndex.value = equippedShoe ? ownedShoes.value.indexOf(equippedShoe) : -1
   }
 
+  /** 旧存档迁移：把背包与临时背包里的种子移入种子袋 */
+  const migrateSeedsToBag = () => {
+    const drain = (pool: typeof items) => {
+      for (let i = pool.value.length - 1; i >= 0; i--) {
+        const slot = pool.value[i]!
+        if (!isSeedItem(slot.itemId)) continue
+        addSeed(slot.itemId, slot.quantity, slot.quality)
+        pool.value.splice(i, 1)
+      }
+    }
+    drain(items)
+    drain(tempItems)
+    sortSeedBag()
+  }
+
   const serialize = () => {
     return {
       items: items.value,
+      seedItems: seedItems.value,
       capacity: capacity.value,
       tempItems: tempItems.value,
       tools: tools.value,
@@ -960,8 +1107,11 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   const deserialize = (data: ReturnType<typeof serialize>) => {
     items.value = (data.items ?? []).filter(i => getItemById(i.itemId))
+    seedItems.value = ((data as any).seedItems ?? []).filter((i: InventoryItem) => getItemById(i.itemId))
     capacity.value = data.capacity ?? INITIAL_CAPACITY
     tempItems.value = ((data as any).tempItems ?? []).filter((i: InventoryItem) => getItemById(i.itemId))
+    // 旧存档迁移：把散落在背包/临时背包里的种子挪进种子袋，腾出格子
+    migrateSeedsToBag()
     tools.value = data.tools ?? [
       { type: 'wateringCan', tier: 'basic' },
       { type: 'hoe', tier: 'basic' },
@@ -1029,6 +1179,10 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   return {
     items,
+    seedItems,
+    seedStackCount,
+    isSeedItem,
+    sortSeedBag,
     capacity,
     tools,
     ownedWeapons,

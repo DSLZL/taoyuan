@@ -8,7 +8,9 @@
     <!-- 标题 -->
     <div class="flex items-center space-x-3">
       <div class="logo" />
-      <h1 class="text-accent text-2xl md:text-4xl tracking-widest">{{ pkg.title }}</h1>
+      <h1 class="text-accent text-2xl md:text-4xl tracking-widest">
+        {{ pkg.title }}
+      </h1>
     </div>
 
     <!-- 主菜单 -->
@@ -219,7 +221,9 @@
                 @click="handleSelectFarm(farm.type)"
               >
                 <div class="text-sm mb-0.5">{{ farm.name }}</div>
-                <div class="text-muted text-xs mb-1">{{ farm.description }}</div>
+                <div class="text-muted text-xs mb-1">
+                  {{ farm.description }}
+                </div>
                 <div class="text-accent text-xs">{{ farm.bonus }}</div>
               </button>
             </div>
@@ -241,8 +245,12 @@
                 <X :size="14" />
               </button>
               <Divider title>{{ selectedFarmDef?.name }}</Divider>
-              <p class="text-xs text-muted mb-2">{{ selectedFarmDef?.description }}</p>
-              <p class="text-xs text-accent mb-4">{{ selectedFarmDef?.bonus }}</p>
+              <p class="text-xs text-muted mb-2">
+                {{ selectedFarmDef?.description }}
+              </p>
+              <p class="text-xs text-accent mb-4">
+                {{ selectedFarmDef?.bonus }}
+              </p>
               <div class="flex space-x-3 justify-center">
                 <Button :icon-size="12" :icon="ArrowLeft" @click="showFarmConfirm = false">取消</Button>
                 <Button class="px-6" :icon-size="12" :icon="Play" @click="handleNewGame">开始旅程</Button>
@@ -378,7 +386,13 @@
 
   const router = useRouter()
   const { startBgm } = useAudio()
-  const pkg = _pkg as typeof _pkg & { title: string; qq: string; version: string; name: string; author: string }
+  const pkg = _pkg as typeof _pkg & {
+    title: string
+    qq: string
+    version: string
+    name: string
+    author: string
+  }
 
   const gameStore = useGameStore()
   const saveStore = useSaveStore()

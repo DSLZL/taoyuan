@@ -6,8 +6,11 @@ import {
   LATE_NIGHT_RECOVERY_MIN,
   PASSOUT_STAMINA_RECOVERY,
   PASSOUT_MONEY_PENALTY_RATE,
-  PASSOUT_MONEY_PENALTY_CAP
+  PASSOUT_MONEY_PENALTY_CAP,
+  STAMINA_WARN_RATIO,
+  STAMINA_CRITICAL_RATIO
 } from '@/data/timeConstants'
+import { addLog, showFloat } from '@/composables/useGameLog'
 import { useSkillStore } from './useSkillStore'
 import { useHomeStore } from './useHomeStore'
 import { useInventoryStore } from './useInventoryStore'
@@ -46,6 +49,35 @@ export const usePlayerStore = defineStore('player', () => {
   /** NPC 用来称呼玩家的称谓 */
   const honorific = computed(() => (gender.value === 'male' ? '小哥' : '姑娘'))
 
+  /**
+   * 今日已提示过的体力预警级别（0 无 / 1 偏低 / 2 告急 / 3 耗尽）。
+   * 逐级递进，避免同一档位反复刷屏；体力回升后自动回落。
+   */
+  const staminaWarnStage = ref(0)
+
+  /** 体力跌破阈值时提醒玩家，并说明昏倒的实际代价 */
+  const checkStaminaWarning = () => {
+    const ratio = maxStamina.value > 0 ? stamina.value / maxStamina.value : 0
+    const penaltyPct = Math.round(PASSOUT_MONEY_PENALTY_RATE * 100)
+
+    if (stamina.value <= 0 && staminaWarnStage.value < 3) {
+      staminaWarnStage.value = 3
+      showFloat('体力已耗尽！再行动就会当场累倒', 'danger')
+      addLog(`体力已耗尽。就这样倒下会损失${penaltyPct}%铜钱（上限${PASSOUT_MONEY_PENALTY_CAP}文），次日体力也只恢复一半。快回去休息吧。`)
+      return
+    }
+    if (ratio <= STAMINA_CRITICAL_RATIO && staminaWarnStage.value < 2) {
+      staminaWarnStage.value = 2
+      showFloat(`体力告急！只剩${stamina.value}点`, 'danger')
+      addLog(`体力所剩无几。若体力归零倒下，将损失${penaltyPct}%铜钱（上限${PASSOUT_MONEY_PENALTY_CAP}文）——吃点东西或回去休息吧。`)
+      return
+    }
+    if (ratio <= STAMINA_WARN_RATIO && staminaWarnStage.value < 1) {
+      staminaWarnStage.value = 1
+      showFloat(`体力不多了（${stamina.value}/${maxStamina.value}）`, 'water')
+    }
+  }
+
   /** 计算当前最大 HP（基础 + 战斗等级 + 专精加成 + 仙缘加成 + 公会加成） */
   const getMaxHp = (): number => {
     const skillStore = useSkillStore()
@@ -80,12 +112,17 @@ export const usePlayerStore = defineStore('player', () => {
     const effectiveAmount = Math.max(1, Math.floor(amount * (1 - spiritSave)))
     if (stamina.value < effectiveAmount) return false
     stamina.value -= effectiveAmount
+    checkStaminaWarning()
     return true
   }
 
   /** 恢复体力 */
   const restoreStamina = (amount: number) => {
     stamina.value = Math.min(stamina.value + amount, maxStamina.value)
+    // 体力回到安全线以上时重置预警，便于下一轮再次提醒
+    const ratio = maxStamina.value > 0 ? stamina.value / maxStamina.value : 0
+    if (ratio > STAMINA_WARN_RATIO) staminaWarnStage.value = 0
+    else if (ratio > STAMINA_CRITICAL_RATIO && staminaWarnStage.value > 1) staminaWarnStage.value = 1
   }
 
   /** 受到伤害（扣 HP），返回实际伤害值 */
@@ -109,6 +146,7 @@ export const usePlayerStore = defineStore('player', () => {
   const dailyReset = (mode: 'normal' | 'late' | 'passout', bedHour?: number): { moneyLost: number; recoveryPct: number } => {
     let moneyLost = 0
     let recoveryPct = 1
+    staminaWarnStage.value = 0
     switch (mode) {
       case 'normal':
         stamina.value = maxStamina.value
@@ -224,6 +262,7 @@ export const usePlayerStore = defineStore('player', () => {
     baseMaxHp,
     isExhausted,
     staminaPercent,
+    staminaWarnStage,
     getMaxHp,
     getHpPercent,
     getIsLowHp,

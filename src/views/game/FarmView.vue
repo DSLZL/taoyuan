@@ -1,5 +1,6 @@
 <template>
   <div>
+    <VillagerPresence spot="farm" />
     <!-- 标签切换 -->
     <div class="flex space-x-1.5 mb-3">
       <Button
@@ -44,7 +45,9 @@
       </div>
 
       <!-- 新手引导 -->
-      <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">{{ tutorialHint }}</p>
+      <p v-if="tutorialHint" class="text-[10px] text-muted/50 mb-2">
+        {{ tutorialHint }}
+      </p>
 
       <!-- 批量操作入口 -->
       <div class="mb-3">
@@ -155,7 +158,12 @@
 
       <!-- 农场网格 -->
       <div class="border border-accent/20 rounded-xs p-2">
-        <div class="grid gap-0.5 max-w-full md:max-w-md" :style="{ gridTemplateColumns: `repeat(${farmStore.farmSize}, minmax(0, 1fr))` }">
+        <div
+          class="grid gap-0.5 max-w-full md:max-w-md"
+          :style="{
+            gridTemplateColumns: `repeat(${farmStore.farmSize}, minmax(0, 1fr))`
+          }"
+        >
           <button
             v-for="plot in farmStore.plots"
             :key="plot.id"
@@ -242,7 +250,9 @@
               <div class="flex-1 h-1 bg-bg rounded-xs border border-accent/10">
                 <div
                   class="h-full rounded-xs bg-success transition-all"
-                  :style="{ width: Math.min(100, Math.floor((activePlot.growthDays / (Number(plotCropGrowthDays) || 1)) * 100)) + '%' }"
+                  :style="{
+                    width: Math.min(100, Math.floor((activePlot.growthDays / (Number(plotCropGrowthDays) || 1)) * 100)) + '%'
+                  }"
                 />
               </div>
               <span class="text-xs text-muted whitespace-nowrap">
@@ -347,7 +357,9 @@
                 <Sprout :size="32" class="text-muted/30" />
                 <p class="text-xs text-muted mt-2">背包中没有当季可种植的种子</p>
                 <Button v-if="isWanwupuOpen" class="mt-2" :icon-size="12" :icon="Store" @click="goToShop">前往商店购买</Button>
-                <p v-else class="text-[10px] text-muted/60 mt-1">{{ wanwupuClosedReason }}</p>
+                <p v-else class="text-[10px] text-muted/60 mt-1">
+                  {{ wanwupuClosedReason }}
+                </p>
               </div>
               <template v-if="canFertilize && fertilizerItems.length > 0">
                 <Divider label="施肥" />
@@ -427,7 +439,9 @@
               <Sprout :size="32" class="text-muted/30" />
               <p class="text-xs text-muted mt-2">没有当季可种植的种子</p>
               <Button v-if="isWanwupuOpen" class="mt-2" :icon-size="12" :icon="Store" @click="goToShop">前往商店购买</Button>
-              <p v-else class="text-[10px] text-muted/60 mt-1">{{ wanwupuClosedReason }}</p>
+              <p v-else class="text-[10px] text-muted/60 mt-1">
+                {{ wanwupuClosedReason }}
+              </p>
             </div>
           </div>
         </div>
@@ -614,17 +628,38 @@
           <span class="text-xs text-muted">{{ farmStore.fruitTrees.length }}/{{ MAX_FRUIT_TREES }}</span>
         </div>
         <div v-if="farmStore.fruitTrees.length > 0" class="flex flex-col space-y-1.5 mb-2">
-          <div v-for="tree in farmStore.fruitTrees" :key="tree.id" class="border border-accent/10 rounded-xs px-3 py-2">
+          <div v-for="(tree, treeIdx) in farmStore.fruitTrees" :key="tree.id" class="border border-accent/10 rounded-xs px-3 py-2">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold" :class="tree.mature ? 'text-accent' : 'text-muted'">{{ getTreeName(tree.type) }}</span>
-              <span v-if="tree.mature" class="text-[10px] text-muted">{{ tree.yearAge }}年</span>
+              <div class="flex items-center space-x-1.5">
+                <span v-if="tree.mature" class="text-[10px] text-muted">{{ tree.yearAge }}年</span>
+                <!-- 自己调整果园的排布顺序 -->
+                <button
+                  class="text-muted hover:text-accent disabled:opacity-30"
+                  title="上移"
+                  :disabled="treeIdx === 0"
+                  @click.stop="farmStore.moveFruitTree(tree.id, -1)"
+                >
+                  <ChevronUp :size="12" />
+                </button>
+                <button
+                  class="text-muted hover:text-accent disabled:opacity-30"
+                  title="下移"
+                  :disabled="treeIdx === farmStore.fruitTrees.length - 1"
+                  @click.stop="farmStore.moveFruitTree(tree.id, 1)"
+                >
+                  <ChevronDown :size="12" />
+                </button>
+              </div>
             </div>
             <template v-if="!tree.mature">
               <div class="flex items-center space-x-2 mb-1.5">
                 <div class="flex-1 h-1 bg-bg rounded-xs border border-accent/10">
                   <div
                     class="h-full rounded-xs bg-success transition-all"
-                    :style="{ width: Math.min(100, Math.floor((tree.growthDays / 28) * 100)) + '%' }"
+                    :style="{
+                      width: Math.min(100, Math.floor((tree.growthDays / 28) * 100)) + '%'
+                    }"
                   />
                 </div>
                 <span class="text-[10px] text-muted whitespace-nowrap">{{ tree.growthDays }}/28天</span>
@@ -851,7 +886,12 @@
           </div>
 
           <!-- 温室地块网格 -->
-          <div class="grid gap-1 max-w-full" :style="{ gridTemplateColumns: `repeat(${ghGridCols}, minmax(0, 1fr))` }">
+          <div
+            class="grid gap-1 max-w-full"
+            :style="{
+              gridTemplateColumns: `repeat(${ghGridCols}, minmax(0, 1fr))`
+            }"
+          >
             <button
               v-for="plot in farmStore.greenhousePlots"
               :key="plot.id"
@@ -1027,7 +1067,9 @@
               <Sprout :size="32" class="text-muted/30" />
               <p class="text-xs text-muted mt-2">背包中没有种子</p>
               <Button v-if="isWanwupuOpen" class="mt-2" :icon-size="12" :icon="Store" @click="goToShop">前往商店购买</Button>
-              <p v-else class="text-[10px] text-muted/60 mt-1">{{ wanwupuClosedReason }}</p>
+              <p v-else class="text-[10px] text-muted/60 mt-1">
+                {{ wanwupuClosedReason }}
+              </p>
             </div>
 
             <!-- 可收获 → 收获 -->
@@ -1048,6 +1090,7 @@
 </template>
 
 <script setup lang="ts">
+  import VillagerPresence from '@/components/game/VillagerPresence.vue'
   import { ref, computed, type Component } from 'vue'
   import {
     Droplets,
@@ -1073,7 +1116,9 @@
     Bird,
     Zap,
     Square,
-    Flower2
+    Flower2,
+    ChevronUp,
+    ChevronDown
   } from 'lucide-vue-next'
   import Button from '@/components/game/Button.vue'
   import Divider from '@/components/game/Divider.vue'
@@ -1209,7 +1254,11 @@
   const showGhUpgradeModal = ref(false)
   const showGhBatchPlant = ref(false)
   const chopFruitTreeTarget = ref<{ id: number; type: string } | null>(null)
-  const chopWildTreeTarget = ref<{ id: number; type: string; chopCount: number } | null>(null)
+  const chopWildTreeTarget = ref<{
+    id: number
+    type: string
+    chopCount: number
+  } | null>(null)
 
   const goToShop = () => {
     if (!isWanwupuOpen.value) {
@@ -1240,7 +1289,14 @@
   const shippableItems = computed(() => {
     return inventoryStore.items
       .map(inv => ({ ...inv, def: getItemById(inv.itemId) }))
-      .filter(item => item.def && item.def.category !== 'seed' && item.def.category !== 'machine' && item.def.category !== 'sprinkler')
+      .filter(
+        item =>
+          item.def &&
+          !item.def.protected &&
+          item.def.category !== 'seed' &&
+          item.def.category !== 'machine' &&
+          item.def.category !== 'sprinkler'
+      )
   })
 
   const shippingBoxTotal = computed(() => {
@@ -1338,10 +1394,30 @@
   // === 背包物品列表 ===
 
   const sprinklerItems = computed(() => {
-    const types: { type: SprinklerType; itemId: string; name: string; colorClass: string }[] = [
-      { type: 'bamboo_sprinkler', itemId: 'bamboo_sprinkler', name: '竹筒洒水器', colorClass: '' },
-      { type: 'copper_sprinkler', itemId: 'copper_sprinkler', name: '铜管洒水器', colorClass: 'text-quality-fine' },
-      { type: 'gold_sprinkler', itemId: 'gold_sprinkler', name: '金管洒水器', colorClass: 'text-quality-supreme' }
+    const types: {
+      type: SprinklerType
+      itemId: string
+      name: string
+      colorClass: string
+    }[] = [
+      {
+        type: 'bamboo_sprinkler',
+        itemId: 'bamboo_sprinkler',
+        name: '竹筒洒水器',
+        colorClass: ''
+      },
+      {
+        type: 'copper_sprinkler',
+        itemId: 'copper_sprinkler',
+        name: '铜管洒水器',
+        colorClass: 'text-quality-fine'
+      },
+      {
+        type: 'gold_sprinkler',
+        itemId: 'gold_sprinkler',
+        name: '金管洒水器',
+        colorClass: 'text-quality-supreme'
+      }
     ]
     return types.map(s => ({ ...s, count: inventoryStore.getItemCount(s.itemId) })).filter(s => s.count > 0)
   })
@@ -1460,7 +1536,11 @@
 
   const plotWarnings = computed(() => {
     const list: { color: string; text: string }[] = []
-    if (unwateredCount.value > 0) list.push({ color: 'text-danger', text: `还有${unwateredCount.value}块需浇水` })
+    if (unwateredCount.value > 0)
+      list.push({
+        color: 'text-danger',
+        text: `还有${unwateredCount.value}块需浇水`
+      })
     if (infestedCount.value > 0) list.push({ color: 'text-danger', text: `有${infestedCount.value}块虫害` })
     if (weedyCount.value > 0) list.push({ color: 'text-success', text: `有${weedyCount.value}块杂草` })
     return list
@@ -1478,11 +1558,26 @@
   }
   /** 按cropId分组的当季育种种子（用于一键种植弹窗） */
   const batchBreedingSeedGroups = computed(() => {
-    const groups: Record<string, { cropId: string; name: string; count: number; minGen: number; maxGen: number }> = {}
+    const groups: Record<
+      string,
+      {
+        cropId: string
+        name: string
+        count: number
+        minGen: number
+        maxGen: number
+      }
+    > = {}
     for (const seed of plantableBreedingSeeds.value) {
       const cid = seed.genetics.cropId
       if (!groups[cid]) {
-        groups[cid] = { cropId: cid, name: getCropName(cid), count: 0, minGen: seed.genetics.generation, maxGen: seed.genetics.generation }
+        groups[cid] = {
+          cropId: cid,
+          name: getCropName(cid),
+          count: 0,
+          minGen: seed.genetics.generation,
+          maxGen: seed.genetics.generation
+        }
       }
       groups[cid]!.count++
       if (seed.genetics.generation < groups[cid]!.minGen) groups[cid]!.minGen = seed.genetics.generation
@@ -1861,7 +1956,11 @@
   const handleChopTree = (treeId: number) => {
     const tree = farmStore.wildTrees.find(t => t.id === treeId)
     if (!tree) return
-    chopWildTreeTarget.value = { id: tree.id, type: tree.type, chopCount: tree.chopCount }
+    chopWildTreeTarget.value = {
+      id: tree.id,
+      type: tree.type,
+      chopCount: tree.chopCount
+    }
   }
 
   const confirmChopWildTree = () => {

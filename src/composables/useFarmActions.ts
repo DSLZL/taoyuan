@@ -235,7 +235,10 @@ export const handlePlotClick = (plotId: number) => {
       }
       // 育种种子回收
       if (genetics && shouldReturnBreedingSeed(quality)) {
-        const returned: SeedGenetics = { ...genetics, id: generateGeneticsId() }
+        const returned: SeedGenetics = {
+          ...genetics,
+          id: generateGeneticsId()
+        }
         if (useBreedingStore().addToBox(returned)) {
           msg += ' 育种种子已回收。'
         } else {
@@ -311,9 +314,13 @@ export const handleSellAll = (filterCategories?: ItemCategory[]) => {
   const sellable = inventoryStore.items
     .filter(inv => {
       const def = getItemById(inv.itemId)
-      return def && def.category !== 'seed' && !inv.locked && (!allowed || allowed.has(def.category))
+      return def && def.category !== 'seed' && !def.protected && !inv.locked && (!allowed || allowed.has(def.category))
     })
-    .map(inv => ({ itemId: inv.itemId, quantity: inv.quantity, quality: inv.quality }))
+    .map(inv => ({
+      itemId: inv.itemId,
+      quantity: inv.quantity,
+      quality: inv.quality
+    }))
   for (const item of sellable) {
     const earned = shopStore.sellItem(item.itemId, item.quantity, item.quality)
     if (earned > 0) {
@@ -532,7 +539,10 @@ export const handleBatchHarvest = () => {
       }
       // 育种种子回收
       if (genetics && shouldReturnBreedingSeed(quality)) {
-        const returned: SeedGenetics = { ...genetics, id: generateGeneticsId() }
+        const returned: SeedGenetics = {
+          ...genetics,
+          id: generateGeneticsId()
+        }
         if (useBreedingStore().addToBox(returned)) seedsReturned++
       }
     }

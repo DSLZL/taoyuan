@@ -1,5 +1,6 @@
 <template>
   <div>
+    <VillagerPresence spot="upgrade" />
     <!-- 标题 -->
     <div class="flex items-center justify-between mb-1">
       <div class="flex items-center space-x-1.5 text-sm text-accent">
@@ -15,7 +16,8 @@
       <div class="flex items-center space-x-1.5">
         <Clock :size="12" class="text-accent shrink-0" />
         <span class="text-xs text-accent">
-          锻造中「{{ TOOL_NAMES[inventoryStore.pendingUpgrade.toolType] }}」→ {{ TIER_NAMES[inventoryStore.pendingUpgrade.targetTier] }}
+          锻造中「{{ TOOL_NAMES[inventoryStore.pendingUpgrade.toolType] }}」→
+          {{ TIER_NAMES[inventoryStore.pendingUpgrade.targetTier] }}
         </span>
       </div>
       <span class="text-xs text-muted whitespace-nowrap ml-2">剩{{ inventoryStore.pendingUpgrade.daysRemaining }}天</span>
@@ -86,7 +88,9 @@
               <div class="flex-1 h-1 bg-bg rounded-xs border border-accent/10">
                 <div
                   class="h-full rounded-xs bg-accent transition-all"
-                  :style="{ width: ((2 - inventoryStore.pendingUpgrade!.daysRemaining) / 2) * 100 + '%' }"
+                  :style="{
+                    width: ((2 - inventoryStore.pendingUpgrade!.daysRemaining) / 2) * 100 + '%'
+                  }"
                 />
               </div>
               <span class="text-xs text-muted whitespace-nowrap">{{ 2 - inventoryStore.pendingUpgrade!.daysRemaining }}/2天</span>
@@ -116,7 +120,8 @@
                     class="text-xs"
                     :class="meetsLevel(npcStore.getFriendshipLevel('xiao_man'), selectedFriendshipReq) ? '' : 'text-danger'"
                   >
-                    {{ LEVEL_NAMES[npcStore.getFriendshipLevel('xiao_man')] }} / {{ LEVEL_NAMES[selectedFriendshipReq] }}
+                    {{ LEVEL_NAMES[npcStore.getFriendshipLevel('xiao_man')] }} /
+                    {{ LEVEL_NAMES[selectedFriendshipReq] }}
                   </span>
                 </div>
               </template>
@@ -179,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+  import VillagerPresence from '@/components/game/VillagerPresence.vue'
   import { ref, computed } from 'vue'
   import { ArrowUp, Wrench, Clock, CircleCheck, X } from 'lucide-vue-next'
   import { useGameStore } from '@/stores/useGameStore'
@@ -200,9 +206,24 @@
   }
 
   /** 各等级体力消耗倍率（与 useInventoryStore 一致） */
-  const STAMINA_MULTIPLIERS: Record<ToolTier, number> = { basic: 1.0, iron: 0.8, steel: 0.6, iridium: 0.4 }
-  const ROD_HOOK: Record<ToolTier, number> = { basic: 40, iron: 45, steel: 50, iridium: 60 }
-  const ROD_TIME: Record<ToolTier, number> = { basic: 30, iron: 33, steel: 36, iridium: 40 }
+  const STAMINA_MULTIPLIERS: Record<ToolTier, number> = {
+    basic: 1.0,
+    iron: 0.8,
+    steel: 0.6,
+    iridium: 0.4
+  }
+  const ROD_HOOK: Record<ToolTier, number> = {
+    basic: 40,
+    iron: 45,
+    steel: 50,
+    iridium: 60
+  }
+  const ROD_TIME: Record<ToolTier, number> = {
+    basic: 30,
+    iron: 33,
+    steel: 36,
+    iridium: 40
+  }
 
   const staminaText = (tier: ToolTier): string => {
     const r = Math.round((1 - STAMINA_MULTIPLIERS[tier]) * 100)

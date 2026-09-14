@@ -45,6 +45,8 @@ export interface NpcState {
   zhiji: boolean
   /** 已触发的心事件ID */
   triggeredHeartEvents: string[]
+  /** 上一次说过的台词，用于避免连续重复 */
+  lastDialogue?: string
 }
 
 /** 心事件场景 */
@@ -92,7 +94,7 @@ export type PregnancyStage = 'early' | 'mid' | 'late' | 'ready'
 export type ProposalResponse = 'accept' | 'decline' | 'wait'
 
 /** 雇工任务类型 */
-export type FarmHelperTask = 'water' | 'feed' | 'harvest' | 'weed' | 'bait'
+export type FarmHelperTask = 'water' | 'feed' | 'harvest' | 'weed' | 'bait' | 'collect'
 
 /** 雇工状态 */
 export interface HiredHelper {
