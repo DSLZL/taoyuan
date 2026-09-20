@@ -130,8 +130,10 @@ jobs:
       - name: 压缩 docs 目录
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          zip -r "taoyuan-${VERSION}-web.zip" docs
+          # 在 docs 内打包：解压即得 index.html 与 assets/，不带 docs 顶层目录
+          (cd docs && zip -r "../taoyuan-${VERSION}-web.zip" .)
           ls -la taoyuan-*-web.zip
+          unzip -l taoyuan-*-web.zip | head -8
 
       - name: 上传网页版压缩包
         uses: actions/upload-artifact@v4
