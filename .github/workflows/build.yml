@@ -74,6 +74,11 @@ jobs:
           java-version: '21'
       - name: 配置 Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 该 action 默认还会装早已下架的 legacy「tools」包，sdkmanager 找不到就直接失败；
+          # 只装 platform-tools，其余组件由 Gradle 按需下载
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
 
       # 使用官方 Gradle Action（内置智能缓存）
       - name: 配置 Gradle
