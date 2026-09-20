@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/**'
+  # 工作流本身的改动被 paths-ignore 挡在外面，修完 CI 得能手动跑一次
+  workflow_dispatch:
 
 jobs:
   # 1. 构建 Electron 客户端
