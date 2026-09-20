@@ -84,10 +84,13 @@
       >
         <span class="text-xs">
           <Target :size="12" class="inline" />
-          抛竿
+          {{ settingsStore.autoFishing ? '一键抛竿' : '抛竿' }}
         </span>
         <span class="text-xs text-muted">消耗体力 · {{ fishTimeLabel }}</span>
       </div>
+      <p v-if="settingsStore.autoFishing" class="text-[10px] text-muted/50 mt-1">
+        一键钓鱼已开启：抛竿直接出结果，不进小游戏。可在设置中关闭。
+      </p>
     </div>
 
     <!-- 钓鱼结果 -->
@@ -420,10 +423,11 @@
   import { useInventoryStore } from '@/stores/useInventoryStore'
   import { usePlayerStore } from '@/stores/usePlayerStore'
   import { useSkillStore } from '@/stores/useSkillStore'
+  import { useSettingsStore } from '@/stores/useSettingsStore'
   import { useTutorialStore } from '@/stores/useTutorialStore'
   import { getBaitById, getTackleById } from '@/data/processing'
   import { FISHING_LOCATIONS } from '@/data/fish'
-  import type { BaitType, TackleType, FishingLocation, FishDef, MiniGameParams, MiniGameResult, Quality } from '@/types'
+  import type { BaitType, TackleType, FishingLocation, FishDef, MiniGameParams, MiniGameRating, MiniGameResult, Quality } from '@/types'
   import { ACTION_TIME_COSTS, TOOL_TIME_SAVINGS, SKILL_TIME_REDUCTION_PER_LEVEL, MIN_ACTION_MINUTES } from '@/data/timeConstants'
   import { sfxFishCatch, sfxLineBroken, sfxClick } from '@/composables/useAudio'
   import { addLog } from '@/composables/useGameLog'
@@ -436,12 +440,17 @@
   const inventoryStore = useInventoryStore()
   const playerStore = usePlayerStore()
   const skillStore = useSkillStore()
+  const settingsStore = useSettingsStore()
   const achievementStore = useAchievementStore()
   const tutorialStore = useTutorialStore()
 
   const tutorialHint = computed(() => {
     if (!tutorialStore.enabled || gameStore.year > 1) return null
-    if (achievementStore.stats.totalFishCaught === 0) return '选择一个钓点后点击「开始钓鱼」。鱼上钩后需要完成小游戏来捕获。'
+    if (achievementStore.stats.totalFishCaught === 0) {
+      return settingsStore.autoFishing
+        ? '选择一个钓点后点击「一键抛竿」，鱼上钩后会自动收线出结果。'
+        : '选择一个钓点后点击「抛竿」。鱼上钩后需要完成收线小游戏来捕获；嫌麻烦可在设置里开启一键钓鱼。'
+    }
     return null
   })
 
@@ -650,6 +659,13 @@
       if (result.junk) {
         // 垃圾直接入包，不进入小游戏
         lastResult.value = result.message
+      } else if (settingsStore.autoFishing) {
+        // 一键钓鱼：不开小游戏，直接掷评级出结果
+        addLog(result.message)
+        const auto = fishingStore.rollAutoFishingRating()
+        addLog(`自动收线（成功率${Math.round(auto.successChance * 100)}%）：${RATING_NAMES[auto.rating]}`)
+        resolveCatch(auto.rating)
+        return
       } else {
         miniGameParams.value = fishingStore.calculateMiniGameParams()
         miniGameCompleted.value = false
@@ -677,37 +693,39 @@
     supreme: 'text-quality-supreme'
   }
 
+  const RATING_NAMES: Record<MiniGameRating, string> = {
+    perfect: '完美',
+    excellent: '优秀',
+    good: '良好',
+    poor: '失败'
+  }
+
+  /** 按评级结算这一竿：入包、经验、宝箱、结果弹窗。小游戏和一键钓鱼共用。 */
+  const resolveCatch = (rating: MiniGameRating) => {
+    const catchData = fishingStore.completeFishing(rating)
+    if (!catchData) return
+    addLog(catchData.message)
+    lastResult.value = catchData.message
+    if (catchData.success) sfxFishCatch()
+    else sfxLineBroken()
+
+    catchResult.value = {
+      fishName: catchData.fishName ?? '',
+      fishId: catchData.fishId,
+      difficulty: catchData.difficulty,
+      sellPrice: catchData.sellPrice,
+      description: catchData.description,
+      quality: catchData.quality,
+      quantity: catchData.quantity,
+      success: catchData.success,
+      message: catchData.message
+    }
+  }
+
   const handleMiniGameComplete = (result: MiniGameResult) => {
     miniGameCompleted.value = true
-
-    const ratingNames: Record<string, string> = {
-      perfect: '完美',
-      excellent: '优秀',
-      good: '良好',
-      poor: '失败'
-    }
-    addLog(`小游戏评级：${ratingNames[result.rating]}！`)
-
-    const catchData = fishingStore.completeFishing(result.rating)
-    if (catchData) {
-      addLog(catchData.message)
-      lastResult.value = catchData.message
-      if (catchData.success) sfxFishCatch()
-      else sfxLineBroken()
-
-      // 显示结果弹窗
-      catchResult.value = {
-        fishName: catchData.fishName ?? '',
-        fishId: catchData.fishId,
-        difficulty: catchData.difficulty,
-        sellPrice: catchData.sellPrice,
-        description: catchData.description,
-        quality: catchData.quality,
-        quantity: catchData.quantity,
-        success: catchData.success,
-        message: catchData.message
-      }
-    }
+    addLog(`小游戏评级：${RATING_NAMES[result.rating]}！`)
+    resolveCatch(result.rating)
 
     showFishingModal.value = false
     showCloseConfirm.value = false

@@ -460,6 +460,24 @@
       </div>
     </Transition>
 
+    <!-- 体力即将耗尽确认：这一步做完体力就归零了，先问一声 -->
+    <Transition name="panel-fade">
+      <div v-if="playerStore.exhaustPrompt" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[80] p-4">
+        <div class="game-panel max-w-xs w-full text-center">
+          <Divider title label="体力即将耗尽" />
+          <p class="text-xs leading-relaxed mb-2">再做这一步，体力就见底了。</p>
+          <p class="text-[10px] text-muted mb-1">体力归零后今天就干不了活了，只能回家睡觉。</p>
+          <p class="text-[10px] text-muted mb-3">主动回家不扣钱；但若拖到凌晨2点才倒下，会损失{{ passOutPenaltyPct }}%铜钱。</p>
+          <p v-if="!hasEdibleItem" class="text-[10px] text-danger mb-3">背包里没有能吃的东西，做完这步就无法回血了。</p>
+          <div class="flex space-x-3 justify-center">
+            <Button :icon="X" :icon-size="12" @click="playerStore.cancelExhaust()">先歇歇</Button>
+            <Button class="!bg-accent !text-bg" @click="playerStore.confirmExhaust()">继续（今天不再问）</Button>
+          </div>
+          <p class="text-[10px] text-muted/50 mt-2">点「继续」后再操作一次即可。</p>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 深夜就寝询问（凌晨1点） -->
     <Transition name="panel-fade">
       <div v-if="showBedtimePrompt" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -685,7 +703,8 @@
         pendingDiscoveryScene.value ||
         showSleepConfirm.value ||
         showBedtimePrompt.value ||
-        lastPassOutNotice.value
+        lastPassOutNotice.value ||
+        playerStore.exhaustPrompt
       ),
     hasModal => setClockBlocker('modal', hasModal),
     { immediate: true }
@@ -744,11 +763,14 @@
   })
 
   const sleepSummary = computed(() => {
-    if (playerStore.stamina <= 0 || gameStore.hour >= 26) {
+    if (gameStore.hour >= 26) {
       return '你已经精疲力竭……将在原地昏倒。'
     }
     if (gameStore.hour >= 24) {
       return '已经过了午夜，拖着疲惫的身体回家……'
+    }
+    if (playerStore.stamina <= 0) {
+      return '体力已经用尽，好在还能走回家。睡一觉，明天又是新的一天。'
     }
     return '回到家中，安稳入睡。明日又是新的一天。'
   })
@@ -757,7 +779,7 @@
     const warnings: string[] = []
     const homeStore = useHomeStore()
     const staminaBonus = homeStore.getStaminaRecoveryBonus()
-    if (playerStore.stamina <= 0 || gameStore.hour >= 26) {
+    if (gameStore.hour >= 26) {
       const pct = Math.round(Math.min(PASSOUT_STAMINA_RECOVERY + staminaBonus, 1) * 100)
       const penaltyPct = Math.round(PASSOUT_MONEY_PENALTY_RATE * 100)
       if (pct < 100) {
@@ -803,6 +825,9 @@
 
   /** 昏倒罚金比例（百分数） */
   const passOutPenaltyPct = Math.round(PASSOUT_MONEY_PENALTY_RATE * 100)
+
+  /** 背包里是否有能恢复体力的东西（用于耗尽确认时的提示） */
+  const hasEdibleItem = computed(() => inventoryStore.items.some(i => (getItemById(i.itemId)?.staminaRestore ?? 0) > 0))
 
   /** 昏倒后次日体力恢复比例（含住宅加成） */
   const passOutRecoveryPct = computed(() => {

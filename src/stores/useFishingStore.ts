@@ -62,6 +62,39 @@ const CRAB_POT_LOOT: {
 /** 钓鱼垃圾池 */
 const FISHING_JUNK = ['trash', 'driftwood', 'broken_cd', 'soggy_newspaper']
 
+/**
+ * 一键钓鱼的评级掷骰参数。
+ * 基准：竹竿 0 级钓一条普通难度的鱼（ease = 1）成功率 82%；
+ * 简单鱼约 95%，困难/传说鱼即便配顶级装备也只有六七成——和手动认真玩的水平相当，
+ * 但完美评级明显更少见，留给愿意自己收线的人一点甜头。
+ */
+const AUTO_FISHING_BASE_FAIL = 0.18
+const AUTO_FISHING_EASE_EXPONENT = 1.6
+const AUTO_FISHING_MIN_SUCCESS = 0.3
+const AUTO_FISHING_MAX_SUCCESS = 0.97
+const AUTO_FISHING_PERFECT_RATE = 0.12
+const AUTO_FISHING_MAX_PERFECT = 0.4
+const AUTO_FISHING_EXCELLENT_SHARE = 0.5
+
+/**
+ * 由小游戏参数折算「上手难易度」：钩子越高、鱼越慢越稳、时限越长越好钓。
+ * 鱼竿/等级/鱼饵/浮漂/令牌/戒指的加成都已折进这些参数，所以一键模式下这些投入照样有用。
+ */
+const getAutoFishingEase = (p: MiniGameParams): number => {
+  const hookFactor = p.hookHeight / 40
+  const speedFactor = 2.0 / Math.max(0.3, p.fishSpeed)
+  const dirFactor = Math.sqrt(0.04 / Math.max(0.005, p.fishChangeDir))
+  const timeFactor = p.timeLimit / 30
+  return hookFactor * speedFactor * dirFactor * timeFactor
+}
+
+/** 一键钓鱼成功率（0.3 ~ 0.97） */
+export const getAutoFishingSuccessChance = (p: MiniGameParams): number => {
+  const ease = getAutoFishingEase(p)
+  const chance = 1 - AUTO_FISHING_BASE_FAIL / Math.pow(ease, AUTO_FISHING_EASE_EXPONENT)
+  return Math.min(AUTO_FISHING_MAX_SUCCESS, Math.max(AUTO_FISHING_MIN_SUCCESS, chance))
+}
+
 /** 宝箱奖品池 */
 const TREASURE_POOL: {
   itemId: string | null
@@ -346,6 +379,22 @@ export const useFishingStore = defineStore('fishing', () => {
       scoreLoss,
       timeLimit
     }
+  }
+
+  /**
+   * 一键钓鱼：跳过收线小游戏，按当前装备与鱼的难度直接掷出评级。
+   * 在 startFishing 之后调用；返回的评级直接交给 completeFishing。
+   */
+  const rollAutoFishingRating = (): { rating: MiniGameRating; successChance: number } => {
+    const params = calculateMiniGameParams()
+    const successChance = getAutoFishingSuccessChance(params)
+    if (Math.random() >= successChance) return { rating: 'poor', successChance }
+
+    const perfectChance = Math.min(AUTO_FISHING_MAX_PERFECT, AUTO_FISHING_PERFECT_RATE * getAutoFishingEase(params))
+    const roll = Math.random()
+    if (roll < perfectChance) return { rating: 'perfect', successChance }
+    if (roll < perfectChance + (1 - perfectChance) * AUTO_FISHING_EXCELLENT_SHARE) return { rating: 'excellent', successChance }
+    return { rating: 'good', successChance }
   }
 
   /** 根据难度、钓鱼等级和鱼竿等级加权随机选鱼 */
@@ -750,6 +799,7 @@ export const useFishingStore = defineStore('fishing', () => {
     unequipTackle,
     startFishing,
     calculateMiniGameParams,
+    rollAutoFishingRating,
     completeFishing,
     endFishing,
     placeCrabPot,

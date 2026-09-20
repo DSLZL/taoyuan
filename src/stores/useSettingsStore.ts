@@ -43,6 +43,12 @@ export const useSettingsStore = defineStore('settings', () => {
    */
   const autoFertilizeOnSeasonChange = ref(false)
 
+  /**
+   * 一键钓鱼：抛竿后跳过收线小游戏，按装备与鱼的难度直接掷出结果。
+   * 默认关闭，给不想被小游戏折磨的玩家一个出口。
+   */
+  const autoFishing = ref(false)
+
   const applyFontSize = () => {
     document.documentElement.style.fontSize = fontSize.value + 'px'
   }
@@ -106,7 +112,8 @@ export const useSettingsStore = defineStore('settings', () => {
       qmsgShowReverse: qmsgShowReverse.value,
       inventoryFilter: inventoryFilter.value,
       mineLogLines: mineLogLines.value,
-      autoFertilizeOnSeasonChange: autoFertilizeOnSeasonChange.value
+      autoFertilizeOnSeasonChange: autoFertilizeOnSeasonChange.value,
+      autoFishing: autoFishing.value
     }
   }
 
@@ -129,6 +136,7 @@ export const useSettingsStore = defineStore('settings', () => {
     inventoryFilter.value = data?.inventoryFilter ?? []
     mineLogLines.value = data?.mineLogLines ?? DEFAULT_MINE_LOG_LINES
     autoFertilizeOnSeasonChange.value = data?.autoFertilizeOnSeasonChange ?? false
+    autoFishing.value = data?.autoFishing ?? false
     syncQmsgConfig()
     const { sfxEnabled, bgmEnabled } = useAudio()
     sfxEnabled.value = data?.sfxEnabled ?? true
@@ -157,6 +165,7 @@ export const useSettingsStore = defineStore('settings', () => {
     inventoryFilter,
     mineLogLines,
     autoFertilizeOnSeasonChange,
+    autoFishing,
     changeFontSize,
     changeTheme,
     changeQmsgPosition,

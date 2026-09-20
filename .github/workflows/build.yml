@@ -101,9 +101,40 @@ jobs:
           name: android-apk
           path: android/app/build/outputs/apk/release/*.apk
 
-  # 3. 发布 Release
+  # 3. 打包网页版（docs 目录），给想自己架静态站的人
+  build-web:
+    name: 打包网页版 (docs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: 配置 Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: 构建前端
+        run: |
+          bun install
+          bun run build
+
+      - name: 压缩 docs 目录
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          zip -r "taoyuan-${VERSION}-web.zip" docs
+          ls -la taoyuan-*-web.zip
+
+      - name: 上传网页版压缩包
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-docs
+          path: taoyuan-*-web.zip
+
+  # 4. 发布 Release
   release:
-    needs: [build-electron, build-android]
+    needs: [build-electron, build-android, build-web]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -130,6 +161,9 @@ jobs:
 
           # 移动 Android APK
           find ./raw-assets/android-apk -type f -name "*.apk" -exec cp {} ./final-release/ \; || true
+
+          # 移动网页版 docs 压缩包
+          find ./raw-assets/web-docs -type f -name "*.zip" -exec cp {} ./final-release/ \; || true
 
           # 检查结果
           echo "Final assets to upload:"

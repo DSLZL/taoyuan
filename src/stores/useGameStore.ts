@@ -194,7 +194,8 @@ export const useGameStore = defineStore('game', () => {
       ? Math.max(1, Math.floor(baseStamina * animalStore.getHorseTravelStaminaMultiplier()))
       : baseStamina
     const playerStore = usePlayerStore()
-    playerStore.consumeStamina(staminaCost)
+    // 赶路不弹「即将耗尽」确认：把人拦在半道毫无意义
+    playerStore.consumeStamina(staminaCost, true)
 
     const result = advanceTime(cost)
     const targetName = getLocationGroupName(targetGroup)

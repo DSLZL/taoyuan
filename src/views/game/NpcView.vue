@@ -474,19 +474,8 @@
               送礼（选择背包中的物品）
               <span v-if="npcStore.isBirthday(selectedNpc!)" class="text-danger">— 生日加成中!</span>
             </p>
-            <template v-if="selectedNpcState?.giftedToday">
-              <div class="flex flex-col items-center justify-center py-6 text-muted">
-                <Gift :size="32" class="mb-2" />
-                <p class="text-xs">今天已送过礼物了。</p>
-              </div>
-            </template>
-            <template v-else-if="(selectedNpcState?.giftsThisWeek ?? 0) >= 2">
-              <div class="flex flex-col items-center justify-center py-6 text-muted">
-                <Gift :size="32" class="mb-2" />
-                <p class="text-xs">本周已送过2次礼物了。</p>
-              </div>
-            </template>
-            <template v-else>
+            <!-- 生日礼有独立额度，先判断能不能送，再分别说明原因 -->
+            <template v-if="!selectedNpc || npcStore.canGiftToday(selectedNpc)">
               <div class="flex flex-col space-y-1 max-h-40 overflow-y-auto">
                 <div
                   v-for="item in giftableItems"
@@ -512,6 +501,13 @@
               <div v-if="giftableItems.length === 0" class="flex flex-col items-center justify-center py-6 text-muted">
                 <Package :size="32" class="mb-2" />
                 <p class="text-xs">背包为空</p>
+              </div>
+            </template>
+            <template v-else>
+              <div class="flex flex-col items-center justify-center py-6 text-muted">
+                <Gift :size="32" class="mb-2" />
+                <p class="text-xs">{{ selectedNpcState?.giftedToday ? '今天已送过礼物了。' : '本周已送过2次礼物了。' }}</p>
+                <p v-if="selectedNpc && npcStore.isBirthday(selectedNpc)" class="text-[10px] text-muted/60 mt-1">今年的生日礼也已送过。</p>
               </div>
             </template>
           </div>
@@ -705,10 +701,7 @@
   }
 
   const npcGiftClass = (npcId: string): string => {
-    const state = npcStore.getNpcState(npcId)
-    if ((state?.giftsThisWeek ?? 0) >= 2) return 'text-muted/20'
-    if (state?.giftedToday) return 'text-muted/20'
-    return 'text-accent'
+    return npcStore.canGiftToday(npcId) ? 'text-accent' : 'text-muted/20'
   }
 
   /** 弹窗中下一颗心的阈值 */
@@ -732,20 +725,18 @@
     }
   })
 
-  /** 弹窗中送礼标签样式 */
+  /** 弹窗中送礼标签样式（生日礼可送时用醒目色） */
   const giftTagClass = computed(() => {
-    const state = selectedNpcState.value
-    if ((state?.giftsThisWeek ?? 0) >= 2) return 'text-muted/40 border-muted/10'
-    if (state?.giftedToday) return 'text-muted/40 border-muted/10'
+    if (!selectedNpc.value) return 'text-muted/40 border-muted/10'
+    if (!npcStore.canGiftToday(selectedNpc.value)) return 'text-muted/40 border-muted/10'
+    if (npcStore.isBirthday(selectedNpc.value)) return 'text-danger border-danger/30'
     return 'text-accent border-accent/30'
   })
 
   /** 弹窗中送礼标签文字 */
   const giftTagText = computed(() => {
-    const state = selectedNpcState.value
-    if ((state?.giftsThisWeek ?? 0) >= 2) return '本周已送满'
-    if (state?.giftedToday) return '今日已送'
-    return `可送礼 ${state?.giftsThisWeek ?? 0}/2`
+    if (!selectedNpc.value) return ''
+    return npcStore.getGiftStatusText(selectedNpc.value)
   })
 
   const giftableItems = computed(() => {

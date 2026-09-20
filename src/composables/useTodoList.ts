@@ -221,8 +221,8 @@ export const useTodoList = () => {
         id: `birthday-${npc.id}`,
         category: 'social',
         text: `今天是${npc.name}的生日`,
-        detail: state?.giftedToday ? '已送过礼' : '送礼好感 ×4',
-        urgency: state?.giftedToday ? 'info' : 'urgent',
+        detail: state?.birthdayGiftGiven ? '生日礼已送' : '可额外送一份生日礼 ×4',
+        urgency: state?.birthdayGiftGiven ? 'info' : 'urgent',
         panel: 'village'
       })
     }

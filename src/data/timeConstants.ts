@@ -69,15 +69,15 @@ export const ACTION_TIME_COSTS = {
   water: 0.08,
   harvest: 0.17,
   // 钓鱼
-  fishStart: 1,
+  fishStart: 0.5,
   // 挖矿
   mineOre: 0.25,
   combat: 0.25,
   nextFloor: 0.17,
   revealTile: 0.05,
-  // 采集
-  forage: 1,
-  chopTree: 1,
+  // 采集：一小时一次的话一天做不了几回、体力都花不完，半小时更合节奏
+  forage: 0.5,
+  chopTree: 0.5,
   // 烹饪
   cook: 0.5,
   eat: 0,
@@ -106,8 +106,8 @@ export const ACTION_TIME_COSTS = {
   batchWater: 0.17,
   batchTill: 0.25,
   batchHarvest: 0.5,
-  // 淘金
-  pan: 1,
+  // 淘金：与钓鱼同为溪边活动，保持同档
+  pan: 0.5,
   // UI
   checkInventory: 0,
   checkSkills: 0,

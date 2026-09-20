@@ -351,6 +351,24 @@ export const useNpcStore = defineStore('npc', () => {
     return npcDef.birthday.season === gameStore.season && npcDef.birthday.day === gameStore.day
   }
 
+  /** 今天还能不能给这位村民送礼（含生日额外一次） */
+  const canGiftToday = (npcId: string): boolean => {
+    const state = getNpcState(npcId)
+    if (!state) return false
+    if (isBirthday(npcId) && !state.birthdayGiftGiven) return true
+    return !state.giftedToday && state.giftsThisWeek < 2
+  }
+
+  /** 送礼状态说明文案，供界面直接展示 */
+  const getGiftStatusText = (npcId: string): string => {
+    const state = getNpcState(npcId)
+    if (!state) return ''
+    if (isBirthday(npcId) && !state.birthdayGiftGiven) return '生日礼 ×4'
+    if (state.giftedToday) return '今日已送'
+    if (state.giftsThisWeek >= 2) return '本周已送满'
+    return `可送礼 ${state.giftsThisWeek}/2`
+  }
+
   /** 获取今天过生日的NPC (null if none) */
   const getTodayBirthdayNpc = (): string | null => {
     const gameStore = useGameStore()
@@ -530,14 +548,24 @@ export const useNpcStore = defineStore('npc', () => {
   ): { gain: number; reaction: string } | null => {
     const state = getNpcState(npcId)
     if (!state) return null
-    if (state.giftedToday) return null
-    if (state.giftsThisWeek >= 2) return null
+
+    // 生日礼走独立额度：不占每日一次、也不占每周两次，但本身只能送一次。
+    // 这样即使本周已送满，生日当天照样能额外送一份。
+    const isBirthdayGift = isBirthday(npcId) && !state.birthdayGiftGiven
+    if (!isBirthdayGift) {
+      if (state.giftedToday) return null
+      if (state.giftsThisWeek >= 2) return null
+    }
 
     const inventoryStore = useInventoryStore()
     if (!inventoryStore.removeItem(itemId, 1, quality)) return null
 
-    state.giftedToday = true
-    state.giftsThisWeek++
+    if (isBirthdayGift) {
+      state.birthdayGiftGiven = true
+    } else {
+      state.giftedToday = true
+      state.giftsThisWeek++
+    }
     const npcDef = getNpcById(npcId)
     if (!npcDef) return null
 
@@ -1182,6 +1210,8 @@ export const useNpcStore = defineStore('npc', () => {
       }
       state.talkedToday = false
       state.giftedToday = false
+      // 生日过完就把生日礼标记清掉，明年生日再用
+      state.birthdayGiftGiven = false
       // 每周日重置周送礼计数 (day 7,14,21,28)
       if (gameStore.day % 7 === 0) {
         state.giftsThisWeek = 0
@@ -1298,6 +1328,8 @@ export const useNpcStore = defineStore('npc', () => {
     getNpcState,
     getFriendshipLevel,
     isBirthday,
+    canGiftToday,
+    getGiftStatusText,
     getTodayBirthdayNpc,
     checkHeartEvent,
     markHeartEventTriggered,

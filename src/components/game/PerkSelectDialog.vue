@@ -1,5 +1,6 @@
 <template>
-  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-40">
+  <!-- z-[80]：必须盖过矿洞探索(z-50)、战斗(z-60)、道具(z-70)弹窗，否则矿洞里升级时点不到 -->
+  <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[80]">
     <div class="game-panel max-w-md w-full">
       <h3 class="text-accent text-sm mb-2">{{ SKILL_NAMES[skillType] }} 达到{{ level }}级！</h3>
       <p class="text-xs text-muted mb-4">选择一个专精方向：</p>

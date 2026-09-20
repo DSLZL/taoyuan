@@ -114,8 +114,13 @@
                 class="flex items-center justify-between border border-accent/20 rounded-xs px-2 py-1 hover:bg-accent/5 mr-1"
                 @click="handleGift(item.itemId, item.quality)"
               >
-                <span class="text-[10px] truncate">{{ getItemById(item.itemId)?.name }}</span>
-                <span v-if="giftPreference(item.itemId)" class="text-[10px]" :class="giftPreferenceClass(item.itemId)">
+                <!-- 品质用颜色 + 标签双重标识，与桃源村面板保持一致 -->
+                <span class="text-[10px] truncate" :class="qualityTextClass(item.quality)">
+                  {{ getItemById(item.itemId)?.name }}
+                  <span v-if="item.quality !== 'normal'">[{{ QUALITY_NAMES[item.quality] }}]</span>
+                  <span class="text-muted/60">&times;{{ item.quantity }}</span>
+                </span>
+                <span v-if="giftPreference(item.itemId)" class="text-[10px] flex-shrink-0 ml-1" :class="giftPreferenceClass(item.itemId)">
                   {{ giftPreference(item.itemId) }}
                 </span>
               </button>
@@ -142,6 +147,7 @@
   import { getItemById } from '@/data/items'
   import { getNpcsAtSpot, SPOT_NAMES, type NpcSpot } from '@/data/npcSchedule'
   import { ACTION_TIME_COSTS } from '@/data/timeConstants'
+  import { QUALITY_NAMES } from '@/composables/useFarmActions'
   import { addLog } from '@/composables/useGameLog'
   import { triggerHeartEvent } from '@/composables/useDialogs'
   import { handleEndDay } from '@/composables/useEndDay'
@@ -185,16 +191,16 @@
   }
 
   const canGift = computed(() => {
-    const state = selectedState.value
-    if (!state) return false
-    return !state.giftedToday && state.giftsThisWeek < 2
+    if (!selected.value) return false
+    return npcStore.canGiftToday(selected.value)
   })
 
   const giftLabel = computed(() => {
-    const state = selectedState.value
-    if (state?.giftedToday) return '今天已送过礼'
-    if ((state?.giftsThisWeek ?? 0) >= 2) return '本周已送满2次'
-    return '送点东西'
+    if (!selected.value) return '送点东西'
+    if (npcStore.canGiftToday(selected.value)) {
+      return npcStore.isBirthday(selected.value) ? '送生日礼（×4）' : '送点东西'
+    }
+    return npcStore.getGiftStatusText(selected.value)
   })
 
   /** 可赠送的物品（种子不参与送礼） */
@@ -220,6 +226,14 @@
     if (def.lovedItems.includes(itemId)) return 'text-danger'
     if (def.likedItems.includes(itemId)) return 'text-success'
     if (def.hatedItems.includes(itemId)) return 'text-muted'
+    return ''
+  }
+
+  /** 品质对应的文字颜色 */
+  const qualityTextClass = (q: Quality): string => {
+    if (q === 'fine') return 'text-quality-fine'
+    if (q === 'excellent') return 'text-quality-excellent'
+    if (q === 'supreme') return 'text-quality-supreme'
     return ''
   }
 

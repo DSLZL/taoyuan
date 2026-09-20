@@ -105,7 +105,12 @@ export interface OwnedWeapon {
 }
 
 /** 箱子阶梯 */
-export type ChestTier = 'wood' | 'copper' | 'iron' | 'gold' | 'void'
+/**
+ * 箱子等级。
+ * main 是解锁仓库即赠送的「总仓」：容量大、按类别自动分区、不可拆除，
+ * 免得玩家花五万文解锁后发现是个空壳还得再造箱子。
+ */
+export type ChestTier = 'main' | 'wood' | 'copper' | 'iron' | 'gold' | 'void'
 
 /** 虚空箱子角色 */
 export type VoidChestRole = 'none' | 'input' | 'output'

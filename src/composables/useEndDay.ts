@@ -434,8 +434,10 @@ export const handleEndDay = () => {
   if (playerStore.stamina < 20) tutorialStore.setFlag('staminaWasLow')
 
   // 恢复模式
+  // 昏倒只看是否撑到了凌晨 2 点。体力归零不算——那是玩家自己花完的，
+  // 只要还能走回家睡觉就不该被扣钱；否则「体力用光 → 回家 → 醒来少了 10% 铜钱」毫无道理。
   let recoveryMode: 'normal' | 'late' | 'passout'
-  if (playerStore.stamina <= 0 || gameStore.hour >= 26) {
+  if (gameStore.hour >= 26) {
     recoveryMode = 'passout'
   } else if (gameStore.hour >= 24) {
     recoveryMode = 'late'

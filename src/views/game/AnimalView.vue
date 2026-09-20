@@ -27,7 +27,7 @@
       <p class="text-xs text-muted mb-2">宠物</p>
       <template v-if="animalStore.pet">
         <div class="flex items-center justify-between mb-1">
-          <div class="flex items-center space-x-1">
+          <div class="flex items-center space-x-1 min-w-0 mr-2">
             <template v-if="renamingId === 'pet'">
               <input
                 v-model="renameInput"
@@ -36,17 +36,19 @@
                 @keyup.enter="confirmRename"
                 @keyup.escape="cancelRename"
               />
-              <Button class="py-0 px-1" @click="confirmRename">确定</Button>
-              <Button class="py-0 px-1" @click="cancelRename">取消</Button>
+              <Button class="btn-compact" @click="confirmRename">确定</Button>
+              <Button class="btn-compact" @click="cancelRename">取消</Button>
             </template>
             <template v-else>
-              <span class="text-xs text-accent">{{ animalStore.pet.type === 'cat' ? '猫' : '狗' }} — {{ animalStore.pet.name }}</span>
-              <button class="text-muted hover:text-accent" @click="startRename('pet', animalStore.pet!.name)">
+              <span class="text-xs text-accent truncate">
+                {{ animalStore.pet.type === 'cat' ? '猫' : '狗' }} — {{ animalStore.pet.name }}
+              </span>
+              <button class="text-muted hover:text-accent shrink-0" @click="startRename('pet', animalStore.pet!.name)">
                 <Pencil :size="10" />
               </button>
             </template>
           </div>
-          <Button class="py-0 px-1" :icon="Hand" :disabled="animalStore.pet.wasPetted" @click="handlePetThePet">
+          <Button class="btn-compact" :icon="Hand" :icon-size="12" :disabled="animalStore.pet.wasPetted" @click="handlePetThePet">
             {{ animalStore.pet.wasPetted ? '已摸' : '抚摸' }}
           </Button>
         </div>
@@ -140,8 +142,9 @@
         <!-- 动物列表 -->
         <div v-if="getAnimalsInBuilding(bDef.type).length > 0" class="flex flex-col space-y-1 max-h-60 overflow-y-auto">
           <div v-for="animal in getAnimalsInBuilding(bDef.type)" :key="animal.id" class="border border-accent/10 rounded-xs p-2 mr-1">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center space-x-1">
+            <!-- 名字与按钮组允许换行：小屏放不下时按钮组整体落到第二行，不再把按钮挤成竖排 -->
+            <div class="flex flex-wrap items-center justify-between mb-1 -mt-1">
+              <div class="flex items-center space-x-1 min-w-0 mr-2 mt-1">
                 <template v-if="renamingId === animal.id">
                   <input
                     v-model="renameInput"
@@ -150,26 +153,33 @@
                     @keyup.enter="confirmRename"
                     @keyup.escape="cancelRename"
                   />
-                  <Button class="py-0 px-1" @click="confirmRename">确定</Button>
-                  <Button class="py-0 px-1" @click="cancelRename">取消</Button>
+                  <Button class="btn-compact" @click="confirmRename">确定</Button>
+                  <Button class="btn-compact" @click="cancelRename">取消</Button>
                 </template>
                 <template v-else>
-                  <span class="text-xs text-accent">{{ animal.name }}</span>
-                  <button class="text-muted hover:text-accent" @click="startRename(animal.id, animal.name)">
+                  <span class="text-xs text-accent truncate">{{ animal.name }}</span>
+                  <button class="text-muted hover:text-accent shrink-0" @click="startRename(animal.id, animal.name)">
                     <Pencil :size="10" />
                   </button>
                 </template>
               </div>
-              <div class="flex items-center space-x-1">
-                <Button class="py-0 px-1" :icon="Apple" :disabled="animal.wasFed" @click="handleFeedAnimal(animal.id, animal.name)">
+              <div class="flex items-center space-x-1 shrink-0 ml-auto mt-1">
+                <Button
+                  class="btn-compact"
+                  :icon="Apple"
+                  :icon-size="12"
+                  :disabled="animal.wasFed"
+                  @click="handleFeedAnimal(animal.id, animal.name)"
+                >
                   {{ animal.wasFed ? '已喂' : '喂食' }}
                 </Button>
-                <Button class="py-0 px-1" :icon="Hand" :disabled="animal.wasPetted" @click="handlePetAnimal(animal.id)">
+                <Button class="btn-compact" :icon="Hand" :icon-size="12" :disabled="animal.wasPetted" @click="handlePetAnimal(animal.id)">
                   {{ animal.wasPetted ? '已摸' : '抚摸' }}
                 </Button>
                 <Button
-                  class="py-0 px-1"
+                  class="btn-compact"
                   :icon="Coins"
+                  :icon-size="12"
                   @click="
                     sellTarget = {
                       id: animal.id,
@@ -217,7 +227,13 @@
             </div>
             <div v-if="animal.sick" class="flex items-center justify-between mt-0.5">
               <p class="text-[10px] text-danger">生病中({{ animal.sickDays }}/5天)</p>
-              <Button class="py-0 px-1" :icon="Syringe" :disabled="medicineCount <= 0" @click="handleHealAnimal(animal.id, animal.name)">
+              <Button
+                class="btn-compact"
+                :icon="Syringe"
+                :icon-size="12"
+                :disabled="medicineCount <= 0"
+                @click="handleHealAnimal(animal.id, animal.name)"
+              >
                 治疗
               </Button>
             </div>
@@ -246,8 +262,8 @@
 
       <template v-if="animalStore.stableBuilt">
         <div v-if="animalStore.getHorse" class="border border-accent/10 rounded-xs p-2">
-          <div class="flex items-center justify-between mb-1">
-            <div class="flex items-center space-x-1">
+          <div class="flex flex-wrap items-center justify-between mb-1 -mt-1">
+            <div class="flex items-center space-x-1 min-w-0 mr-2 mt-1">
               <template v-if="renamingId === animalStore.getHorse.id">
                 <input
                   v-model="renameInput"
@@ -256,37 +272,43 @@
                   @keyup.enter="confirmRename"
                   @keyup.escape="cancelRename"
                 />
-                <Button class="py-0 px-1" @click="confirmRename">确定</Button>
-                <Button class="py-0 px-1" @click="cancelRename">取消</Button>
+                <Button class="btn-compact" @click="confirmRename">确定</Button>
+                <Button class="btn-compact" @click="cancelRename">取消</Button>
               </template>
               <template v-else>
-                <span class="text-xs text-accent">{{ animalStore.getHorse.name }}</span>
-                <span class="text-[10px] text-muted">{{ animalStore.horseBreedDef.name }}</span>
-                <button class="text-muted hover:text-accent" @click="startRename(animalStore.getHorse!.id, animalStore.getHorse!.name)">
+                <span class="text-xs text-accent truncate">{{ animalStore.getHorse.name }}</span>
+                <span class="text-[10px] text-muted whitespace-nowrap">{{ animalStore.horseBreedDef.name }}</span>
+                <button
+                  class="text-muted hover:text-accent shrink-0"
+                  @click="startRename(animalStore.getHorse!.id, animalStore.getHorse!.name)"
+                >
                   <Pencil :size="10" />
                 </button>
               </template>
             </div>
-            <div class="flex items-center space-x-1">
+            <div class="flex items-center space-x-1 shrink-0 ml-auto mt-1">
               <Button
-                class="py-0 px-1"
+                class="btn-compact"
                 :icon="Apple"
+                :icon-size="12"
                 :disabled="animalStore.getHorse.wasFed"
                 @click="handleFeedAnimal(animalStore.getHorse.id, animalStore.getHorse.name)"
               >
                 {{ animalStore.getHorse.wasFed ? '已喂' : '喂食' }}
               </Button>
               <Button
-                class="py-0 px-1"
+                class="btn-compact"
                 :icon="Hand"
+                :icon-size="12"
                 :disabled="animalStore.getHorse.wasPetted"
                 @click="handlePetAnimal(animalStore.getHorse.id)"
               >
                 {{ animalStore.getHorse.wasPetted ? '已摸' : '抚摸' }}
               </Button>
               <Button
-                class="py-0 px-1"
+                class="btn-compact"
                 :icon="Coins"
+                :icon-size="12"
                 @click="
                   sellTarget = {
                     id: animalStore.getHorse!.id,

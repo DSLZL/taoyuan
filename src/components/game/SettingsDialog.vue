@@ -72,6 +72,30 @@
                 </div>
               </div>
 
+              <!-- 一键钓鱼：跳过收线小游戏 -->
+              <div class="border border-accent/20 rounded-xs p-3 mr-1 mb-2">
+                <p class="text-xs text-muted mb-2">一键钓鱼</p>
+                <p class="text-[10px] text-muted/50 mb-2">
+                  开启后抛竿直接出结果，不用玩收线小游戏。成功率仍看鱼竿、钓鱼等级、鱼饵浮漂和鱼的难度，只是完美评级比手动少见。
+                </p>
+                <div class="flex items-center justify-center space-x-2">
+                  <Button
+                    class="py-1 px-3"
+                    :class="{ '!bg-accent !text-bg': settingsStore.autoFishing }"
+                    @click="settingsStore.autoFishing = true"
+                  >
+                    开启
+                  </Button>
+                  <Button
+                    class="py-1 px-3"
+                    :class="{ '!bg-accent !text-bg': !settingsStore.autoFishing }"
+                    @click="settingsStore.autoFishing = false"
+                  >
+                    关闭
+                  </Button>
+                </div>
+              </div>
+
               <!-- 新手提示 -->
               <div class="border border-accent/20 rounded-xs p-3 mr-1 mb-2">
                 <p class="text-xs text-muted mb-2">新手提示</p>

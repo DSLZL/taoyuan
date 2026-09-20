@@ -2530,6 +2530,35 @@ export const isProtectedItem = (itemId: string): boolean => {
   return PROTECTED_ITEM_IDS.has(itemId)
 }
 
+/** 物品分类中文名（背包筛选、仓库分区、商店标签共用） */
+export const ITEM_CATEGORY_NAMES: Record<ItemCategory, string> = {
+  seed: '种子',
+  crop: '作物',
+  fruit: '水果',
+  fish: '鱼类',
+  animal_product: '畜产',
+  processed: '加工品',
+  food: '料理',
+  ore: '矿石',
+  gem: '宝石',
+  material: '材料',
+  machine: '机器',
+  sprinkler: '洒水器',
+  fertilizer: '肥料',
+  bait: '鱼饵',
+  tackle: '钓具',
+  bomb: '炸弹',
+  sapling: '树苗',
+  gift: '礼物',
+  fossil: '化石',
+  artifact: '文物',
+  misc: '杂货',
+  weapon: '武器',
+  ring: '戒指',
+  hat: '帽子',
+  shoe: '鞋子'
+}
+
 /** 根据ID查找物品 */
 export const getItemById = (id: string): ItemDef | undefined => {
   return ITEMS.find(i => i.id === id)
@@ -2756,6 +2785,13 @@ export const CHEST_DEFS: Record<
     description: string
   }
 > = {
+  main: {
+    name: '总仓',
+    capacity: 120,
+    craftCost: [],
+    craftMoney: 0,
+    description: '解锁仓库即赠。物品按类别自动归档，容量随仓库扩建提升。不可拆除。'
+  },
   wood: {
     name: '木箱',
     capacity: 9,

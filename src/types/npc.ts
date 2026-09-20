@@ -37,6 +37,11 @@ export interface NpcState {
   giftedToday: boolean
   /** 本周送礼次数 (上限2) */
   giftsThisWeek: number
+  /**
+   * 生日礼是否已送。
+   * 生日当天可额外送一次，不占每日与每周额度——否则本周送满两次的话生日反而送不了。
+   */
+  birthdayGiftGiven?: boolean
   /** 是否正在约会 */
   dating: boolean
   /** 是否已结婚 */

@@ -54,6 +54,16 @@ export const _registerPerkChecker = (fn: () => void) => {
   _perkChecker = fn
 }
 
+/**
+ * 主动触发一次天赋检查。
+ * 供技能升级时直接调用：矿洞里的挖矿/战斗不经过 addLog，
+ * 否则升到 5/10 级后专精弹窗要等玩家离开矿洞才弹出来，
+ * 造成「选完专精就出矿洞」的错觉。
+ */
+export const triggerPerkCheck = () => {
+  _perkChecker?.()
+}
+
 // === 日志历史记录（内存中，不存档，刷新页面清空） ===
 
 export interface LogEntry {

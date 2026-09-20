@@ -104,16 +104,48 @@ export const usePlayerStore = defineStore('player', () => {
     return hp.value <= getMaxHp() * 0.25
   }
 
-  /** 消耗体力（含仙缘灵护减免），返回是否成功 */
-  const consumeStamina = (amount: number): boolean => {
+  /**
+   * 玩家是否已确认「体力将耗尽也继续」。
+   * 第一次会把体力打到 0 的操作会被拦下并弹确认框，玩家点了继续再操作一次即可放行；
+   * 每天重置，避免同一天反复弹。
+   */
+  const exhaustConfirmed = ref(false)
+
+  /** 是否正在等待玩家确认（界面据此弹窗） */
+  const exhaustPrompt = ref(false)
+
+  /**
+   * 消耗体力（含仙缘灵护减免），返回是否成功。
+   * @param skipExhaustPrompt 跳过「即将耗尽」确认。赶路这种不该把人拦在半道的消耗传 true。
+   */
+  const consumeStamina = (amount: number, skipExhaustPrompt = false): boolean => {
     // 仙缘结缘：灵护（spirit_shield）体力消耗减免
     const spiritShield2 = useHiddenNpcStore().getBondBonusByType('spirit_shield')
     const spiritSave = spiritShield2?.type === 'spirit_shield' ? spiritShield2.staminaSave / 100 : 0
     const effectiveAmount = Math.max(1, Math.floor(amount * (1 - spiritSave)))
     if (stamina.value < effectiveAmount) return false
+
+    // 这一下会把体力打到 0：先拦住问一声。所有耗体力操作都经过这里，
+    // 调用方把 false 当「体力不足」处理即可，不必逐个改动。
+    if (!skipExhaustPrompt && !exhaustConfirmed.value && stamina.value - effectiveAmount <= 0) {
+      exhaustPrompt.value = true
+      return false
+    }
+
     stamina.value -= effectiveAmount
     checkStaminaWarning()
     return true
+  }
+
+  /** 玩家确认继续：今天内不再询问，重新操作一次即可 */
+  const confirmExhaust = () => {
+    exhaustConfirmed.value = true
+    exhaustPrompt.value = false
+  }
+
+  /** 玩家选择先歇歇 */
+  const cancelExhaust = () => {
+    exhaustPrompt.value = false
   }
 
   /** 恢复体力 */
@@ -147,6 +179,8 @@ export const usePlayerStore = defineStore('player', () => {
     let moneyLost = 0
     let recoveryPct = 1
     staminaWarnStage.value = 0
+    exhaustConfirmed.value = false
+    exhaustPrompt.value = false
     switch (mode) {
       case 'normal':
         stamina.value = maxStamina.value
@@ -267,6 +301,10 @@ export const usePlayerStore = defineStore('player', () => {
     getHpPercent,
     getIsLowHp,
     consumeStamina,
+    exhaustConfirmed,
+    exhaustPrompt,
+    confirmExhaust,
+    cancelExhaust,
     restoreStamina,
     takeDamage,
     restoreHealth,

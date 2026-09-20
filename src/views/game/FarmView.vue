@@ -849,7 +849,7 @@
         class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
         @click.self="showGreenhouseModal = false"
       >
-        <div class="game-panel max-w-sm w-full relative">
+        <div class="game-panel max-w-sm w-full relative max-h-[85vh] overflow-y-auto">
           <button class="absolute top-2 right-2 text-muted hover:text-text" @click="showGreenhouseModal = false">
             <X :size="14" />
           </button>
@@ -1034,19 +1034,34 @@
             </div>
           </div>
 
-          <!-- 操作区 -->
-          <div class="flex flex-col space-y-1.5">
-            <!-- 已耕 → 种植（所有种子） -->
-            <div v-if="activeGhPlot.state === 'tilled' && allSeeds.length > 0" class="border border-accent/10 rounded-xs p-2">
-              <p class="text-xs text-muted mb-1">种植</p>
-              <div class="flex flex-wrap space-x-1">
-                <Button v-for="seed in allSeeds" :key="seed.cropId" @click="doGhPlant(seed.cropId)">
+          <!-- 操作区：与农田地块弹窗同款可滚动列表，种子多了也翻得动 -->
+          <div class="flex flex-col space-y-1 max-h-60 overflow-y-auto">
+            <!-- 可收获 → 收获 -->
+            <Button
+              v-if="activeGhPlot.state === 'harvestable'"
+              class="w-full justify-center shrink-0 !bg-accent !text-bg"
+              :icon-size="12"
+              :icon="Wheat"
+              @click="doGhHarvest"
+            >
+              收获
+            </Button>
+            <!-- 已耕 → 种植（温室不限季节，所有种子都能种） -->
+            <template v-if="activeGhPlot.state === 'tilled' && allSeeds.length > 0">
+              <Divider label="种植" />
+              <button
+                v-for="seed in allSeeds"
+                :key="seed.cropId"
+                class="btn text-xs justify-between mr-1 shrink-0"
+                @click="doGhPlant(seed.cropId)"
+              >
+                <span>
                   {{ seed.name }}
                   <span v-if="seed.regrowth" class="text-success ml-1">[多茬]</span>
-                  (×{{ seed.count }})
-                </Button>
-              </div>
-            </div>
+                </span>
+                <span class="text-muted">×{{ seed.count }}</span>
+              </button>
+            </template>
             <!-- 已耕 → 育种种子种植 -->
             <template v-if="activeGhPlot.state === 'tilled' && ghPlantableBreedingSeeds.length > 0">
               <Divider label="育种种子" class="!my-2" />
@@ -1063,7 +1078,10 @@
               </button>
             </template>
             <!-- 已耕无种子空状态 -->
-            <div v-else-if="activeGhPlot.state === 'tilled' && allSeeds.length === 0" class="flex flex-col items-center py-4">
+            <div
+              v-if="activeGhPlot.state === 'tilled' && allSeeds.length === 0 && ghPlantableBreedingSeeds.length === 0"
+              class="flex flex-col items-center py-4"
+            >
               <Sprout :size="32" class="text-muted/30" />
               <p class="text-xs text-muted mt-2">背包中没有种子</p>
               <Button v-if="isWanwupuOpen" class="mt-2" :icon-size="12" :icon="Store" @click="goToShop">前往商店购买</Button>
@@ -1071,17 +1089,6 @@
                 {{ wanwupuClosedReason }}
               </p>
             </div>
-
-            <!-- 可收获 → 收获 -->
-            <Button
-              v-if="activeGhPlot.state === 'harvestable'"
-              class="w-full justify-center !bg-accent !text-bg"
-              :icon-size="12"
-              :icon="Wheat"
-              @click="doGhHarvest"
-            >
-              收获
-            </Button>
           </div>
         </div>
       </div>
